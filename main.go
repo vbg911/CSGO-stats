@@ -24,6 +24,9 @@ type playersDuckKills map[uint64]int
 type playersFlashedKills map[uint64]int
 type playersAirborneKills map[uint64]int
 type playersWallbangKills map[uint64]int
+type playerSmokeKills map[uint64]int
+type playerNoScopeKills map[uint64]int
+type playerWeaponShots map[uint64]int
 
 const (
 	dotSize     = 15
@@ -51,14 +54,17 @@ func main() {
 		header, err := p.ParseHeader()
 		checkError(err)
 
-		playersFootStep := make(map[uint64]int, 10)
-		playersDuckKill := make(map[uint64]int, 10)
-		playersFlashedKill := make(map[uint64]int, 10)
-		playersAirborneKill := make(map[uint64]int, 10)
-		playersWallbangKill := make(map[uint64]int, 10)
+		playersFootStep := make(playersFootSteps, 11)
+		playersDuckKill := make(playersDuckKills, 10)
+		playersFlashedKill := make(playersFlashedKills, 10)
+		playersAirborneKill := make(playersAirborneKills, 10)
+		playersWallbangKill := make(playersWallbangKills, 10)
+		playersSmokeKill := make(playerSmokeKills, 10)
+		playersNoScopeKill := make(playerNoScopeKills, 10)
+		playersWeaponShot := make(playerWeaponShots, 11)
 		p.RegisterEventHandler(func(e events.Footstep) { handleFootstep(e, playersFootStep) })
 		p.RegisterEventHandler(func(e events.Kill) {
-			handleKill(e, playersDuckKill, playersFlashedKill, playersAirborneKill, playersWallbangKill)
+			handleKill(e, playersDuckKill, playersFlashedKill, playersAirborneKill, playersWallbangKill, playersSmokeKill, playersNoScopeKill)
 		})
 		p.RegisterEventHandler(func(e events.RoundStart) {})
 
@@ -70,7 +76,6 @@ func main() {
 		p.RegisterNetMessageHandler(func(msg *msg.CSVCMsg_ServerInfo) {
 			// Get metadata for the map that the game was played on for coordinate translations
 			mapMetadata = ex.GetMapMetadata(header.MapName, msg.GetMapCrc())
-
 			// Load map overview image
 			mapRadarImg = ex.GetMapRadar(header.MapName, msg.GetMapCrc())
 		})
@@ -81,8 +86,9 @@ func main() {
 		p.RegisterEventHandler(func(e events.WeaponFire) {
 			// Translate positions from in-game coordinates to radar overview image pixels
 			x, y := mapMetadata.TranslateScale(e.Shooter.Position().X, e.Shooter.Position().Y)
-
 			points = append(points, r2.Point{X: x, Y: y})
+			playersWeaponShot[e.Shooter.SteamID64] += 1
+			playersWeaponShot[0] += 1
 		})
 
 		p.RegisterEventHandler(func(events.DataTablesParsed) {
@@ -97,10 +103,11 @@ func main() {
 		players := p.GameState().Participants().Playing()
 		var stats []playerStats
 		for _, p := range players {
-			stats = append(stats, statsFor(p, playersFootStep, playersDuckKill, playersFlashedKill, playersAirborneKill, playersWallbangKill))
+			stats = append(stats, statsFor(p, playersFootStep, playersDuckKill, playersFlashedKill, playersAirborneKill, playersWallbangKill, playersSmokeKill, playersNoScopeKill, playersWeaponShot))
 		}
 
-		fmt.Println("Все игроки вместе сделали: ", playersFootStep[0])
+		fmt.Println("Все игроки вместе сделали: ", playersFootStep[0], " шагов")
+		fmt.Println("Все игроки вместе сделали: ", playersWeaponShot[0], " выстрелов")
 
 		for _, player := range stats {
 			fmt.Println(player.formatString() + "\n")
@@ -116,7 +123,7 @@ func handleFootstep(e events.Footstep, footSteps playersFootSteps) {
 	footSteps[0] += 1
 }
 
-func handleKill(e events.Kill, duckKills playersDuckKills, flashKills playersFlashedKills, airborneKills playersFlashedKills, wallbangKills playersWallbangKills) {
+func handleKill(e events.Kill, duckKills playersDuckKills, flashKills playersFlashedKills, airborneKills playersAirborneKills, wallbangKills playersWallbangKills, smokeKills playerSmokeKills, noScopeKills playerNoScopeKills) {
 	if e.Killer.IsDucking() {
 		duckKills[e.Killer.SteamID64] += 1
 	}
@@ -132,7 +139,15 @@ func handleKill(e events.Kill, duckKills playersDuckKills, flashKills playersFla
 	if e.IsWallBang() {
 		wallbangKills[e.Killer.SteamID64] += 1
 	}
-	//fmt.Println(parser.GameState().IngameTick())
+
+	if e.ThroughSmoke {
+		smokeKills[e.Killer.SteamID64] += 1
+	}
+
+	if e.NoScope {
+		noScopeKills[e.Killer.SteamID64] += 1
+	}
+
 }
 
 type playerStats struct {
@@ -149,6 +164,9 @@ type playerStats struct {
 	FlashedKills  int    `json:"flashKills"`
 	AirborneKills int    `json:"airborneKills"`
 	WallbangKills int    `json:"wallbangKills"`
+	SmokeKills    int    `json:"smokeKills"`
+	NoScopeKills  int    `json:"noScopeKills"`
+	WeaponShots   int    `json:"weaponShots"`
 }
 
 func (s playerStats) formatString() string {
@@ -164,10 +182,13 @@ func (s playerStats) formatString() string {
 		"\nDuckKills:      " + strconv.Itoa(s.DuckKills) +
 		"\nFlashedKills:   " + strconv.Itoa(s.FlashedKills) +
 		"\nAirborneKills   " + strconv.Itoa(s.AirborneKills) +
-		"\nWallbangKills   " + strconv.Itoa(s.WallbangKills)
+		"\nWallbangKills   " + strconv.Itoa(s.WallbangKills) +
+		"\nSmokeKills      " + strconv.Itoa(s.SmokeKills) +
+		"\nNoScopeKills    " + strconv.Itoa(s.NoScopeKills) +
+		"\nWeaponShots     " + strconv.Itoa(s.WeaponShots)
 }
 
-func statsFor(p *common.Player, fs playersFootSteps, dk playersDuckKills, fk playersFlashedKills, airk playersAirborneKills, wbk playersWallbangKills) playerStats {
+func statsFor(p *common.Player, fs playersFootSteps, dk playersDuckKills, fk playersFlashedKills, airk playersAirborneKills, wbk playersWallbangKills, sk playerSmokeKills, ns playerNoScopeKills, ws playerWeaponShots) playerStats {
 	return playerStats{
 		SteamID64:     p.SteamID64,
 		Name:          p.Name,
@@ -182,6 +203,9 @@ func statsFor(p *common.Player, fs playersFootSteps, dk playersDuckKills, fk pla
 		FlashedKills:  fk[p.SteamID64],
 		AirborneKills: airk[p.SteamID64],
 		WallbangKills: wbk[p.SteamID64],
+		SmokeKills:    sk[p.SteamID64],
+		NoScopeKills:  ns[p.SteamID64],
+		WeaponShots:   ws[p.SteamID64],
 	}
 }
 
