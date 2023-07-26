@@ -27,6 +27,8 @@ type playersWallbangKills map[uint64]int
 type playerSmokeKills map[uint64]int
 type playerNoScopeKills map[uint64]int
 type playerWeaponShots map[uint64]int
+type playerWeaponReloads map[uint64]int
+type playerJumps map[uint64]int
 
 const (
 	dotSize     = 15
@@ -62,7 +64,13 @@ func main() {
 		playersSmokeKill := make(playerSmokeKills, 10)
 		playersNoScopeKill := make(playerNoScopeKills, 10)
 		playersWeaponShot := make(playerWeaponShots, 11)
-		p.RegisterEventHandler(func(e events.Footstep) { handleFootstep(e, playersFootStep) })
+		playersWeaponReload := make(playerWeaponReloads, 11)
+		playersJump := make(playerJumps, 11)
+
+		p.RegisterEventHandler(func(e events.Footstep) {
+			playersFootStep[e.Player.SteamID64] += 1
+			playersFootStep[0] += 1
+		})
 		p.RegisterEventHandler(func(e events.Kill) {
 			handleKill(e, playersDuckKill, playersFlashedKill, playersAirborneKill, playersWallbangKill, playersSmokeKill, playersNoScopeKill)
 		})
@@ -82,7 +90,6 @@ func main() {
 
 		// Register handler for WeaponFire, triggered every time a shot is fired
 		var points []r2.Point
-
 		p.RegisterEventHandler(func(e events.WeaponFire) {
 			// Translate positions from in-game coordinates to radar overview image pixels
 			x, y := mapMetadata.TranslateScale(e.Shooter.Position().X, e.Shooter.Position().Y)
@@ -91,8 +98,16 @@ func main() {
 			playersWeaponShot[0] += 1
 		})
 
-		p.RegisterEventHandler(func(events.DataTablesParsed) {
+		p.RegisterEventHandler(func(events.DataTablesParsed) {})
 
+		p.RegisterEventHandler(func(e events.PlayerJump) {
+			playersJump[e.Player.SteamID64] += 1
+			playersJump[0] += 1
+		})
+
+		p.RegisterEventHandler(func(e events.WeaponReload) {
+			playersWeaponReload[e.Player.SteamID64] += 1
+			playersWeaponReload[0] += 1
 		})
 
 		err = p.ParseToEnd()
@@ -103,11 +118,13 @@ func main() {
 		players := p.GameState().Participants().Playing()
 		var stats []playerStats
 		for _, p := range players {
-			stats = append(stats, statsFor(p, playersFootStep, playersDuckKill, playersFlashedKill, playersAirborneKill, playersWallbangKill, playersSmokeKill, playersNoScopeKill, playersWeaponShot))
+			stats = append(stats, statsFor(p, playersFootStep, playersDuckKill, playersFlashedKill, playersAirborneKill, playersWallbangKill, playersSmokeKill, playersNoScopeKill, playersWeaponShot, playersWeaponReload, playersJump))
 		}
 
 		fmt.Println("Все игроки вместе сделали: ", playersFootStep[0], " шагов")
 		fmt.Println("Все игроки вместе сделали: ", playersWeaponShot[0], " выстрелов")
+		fmt.Println("Все игроки вместе сделали: ", playersWeaponReload[0], " перезарядок")
+		fmt.Println("Все игроки вместе сделали: ", playersJump[0], " прыжков")
 
 		for _, player := range stats {
 			fmt.Println(player.formatString() + "\n")
@@ -116,11 +133,6 @@ func main() {
 		generateHeatMap(points, mapRadarImg, name+".jpeg")
 		println("\n")
 	}
-}
-
-func handleFootstep(e events.Footstep, footSteps playersFootSteps) {
-	footSteps[e.Player.SteamID64] += 1
-	footSteps[0] += 1
 }
 
 func handleKill(e events.Kill, duckKills playersDuckKills, flashKills playersFlashedKills, airborneKills playersAirborneKills, wallbangKills playersWallbangKills, smokeKills playerSmokeKills, noScopeKills playerNoScopeKills) {
@@ -167,6 +179,8 @@ type playerStats struct {
 	SmokeKills    int    `json:"smokeKills"`
 	NoScopeKills  int    `json:"noScopeKills"`
 	WeaponShots   int    `json:"weaponShots"`
+	WeaponReloads int    `json:"weaponReloads"`
+	PlayerJumps   int    `json:"playerJumps"`
 }
 
 func (s playerStats) formatString() string {
@@ -181,14 +195,16 @@ func (s playerStats) formatString() string {
 		"\nFootSteps:      " + strconv.Itoa(s.FootSteps) +
 		"\nDuckKills:      " + strconv.Itoa(s.DuckKills) +
 		"\nFlashedKills:   " + strconv.Itoa(s.FlashedKills) +
-		"\nAirborneKills   " + strconv.Itoa(s.AirborneKills) +
-		"\nWallbangKills   " + strconv.Itoa(s.WallbangKills) +
-		"\nSmokeKills      " + strconv.Itoa(s.SmokeKills) +
-		"\nNoScopeKills    " + strconv.Itoa(s.NoScopeKills) +
-		"\nWeaponShots     " + strconv.Itoa(s.WeaponShots)
+		"\nAirborneKills:  " + strconv.Itoa(s.AirborneKills) +
+		"\nWallbangKills:  " + strconv.Itoa(s.WallbangKills) +
+		"\nSmokeKills:     " + strconv.Itoa(s.SmokeKills) +
+		"\nNoScopeKills:   " + strconv.Itoa(s.NoScopeKills) +
+		"\nWeaponShots:    " + strconv.Itoa(s.WeaponShots) +
+		"\nWeaponReloads:  " + strconv.Itoa(s.WeaponReloads) +
+		"\nJumps:          " + strconv.Itoa(s.PlayerJumps)
 }
 
-func statsFor(p *common.Player, fs playersFootSteps, dk playersDuckKills, fk playersFlashedKills, airk playersAirborneKills, wbk playersWallbangKills, sk playerSmokeKills, ns playerNoScopeKills, ws playerWeaponShots) playerStats {
+func statsFor(p *common.Player, fs playersFootSteps, dk playersDuckKills, fk playersFlashedKills, airk playersAirborneKills, wbk playersWallbangKills, sk playerSmokeKills, ns playerNoScopeKills, ws playerWeaponShots, wr playerWeaponReloads, pj playerJumps) playerStats {
 	return playerStats{
 		SteamID64:     p.SteamID64,
 		Name:          p.Name,
@@ -206,6 +222,8 @@ func statsFor(p *common.Player, fs playersFootSteps, dk playersDuckKills, fk pla
 		SmokeKills:    sk[p.SteamID64],
 		NoScopeKills:  ns[p.SteamID64],
 		WeaponShots:   ws[p.SteamID64],
+		WeaponReloads: wr[p.SteamID64],
+		PlayerJumps:   pj[p.SteamID64],
 	}
 }
 
