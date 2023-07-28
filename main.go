@@ -29,6 +29,8 @@ type playerNoScopeKills map[uint64]int
 type playerWeaponShots map[uint64]int
 type playerWeaponReloads map[uint64]int
 type playerJumps map[uint64]int
+type playerGrenades map[uint64]map[string]int
+type playerBombDrops map[uint64]int
 
 const (
 	dotSize     = 15
@@ -66,6 +68,8 @@ func main() {
 		playersWeaponShot := make(playerWeaponShots, 11)
 		playersWeaponReload := make(playerWeaponReloads, 11)
 		playersJump := make(playerJumps, 11)
+		playersGrenade := make(playerGrenades, 11)
+		playersBombDrop := make(playerBombDrops, 11)
 
 		p.RegisterEventHandler(func(e events.Footstep) {
 			playersFootStep[e.Player.SteamID64] += 1
@@ -74,7 +78,6 @@ func main() {
 		p.RegisterEventHandler(func(e events.Kill) {
 			handleKill(e, playersDuckKill, playersFlashedKill, playersAirborneKill, playersWallbangKill, playersSmokeKill, playersNoScopeKill)
 		})
-		p.RegisterEventHandler(func(e events.RoundStart) {})
 
 		var (
 			mapMetadata ex.Map
@@ -98,8 +101,6 @@ func main() {
 			playersWeaponShot[0] += 1
 		})
 
-		p.RegisterEventHandler(func(events.DataTablesParsed) {})
-
 		p.RegisterEventHandler(func(e events.PlayerJump) {
 			playersJump[e.Player.SteamID64] += 1
 			playersJump[0] += 1
@@ -110,6 +111,18 @@ func main() {
 			playersWeaponReload[0] += 1
 		})
 
+		p.RegisterEventHandler(func(e events.GrenadeEvent) {
+			fmt.Println("errt")
+			fmt.Println(e.Grenade.String())
+			fmt.Println(e.Grenade.OriginalString)
+			playersGrenade[e.Thrower.SteamID64][e.Grenade.String()] += 1
+		})
+
+		p.RegisterEventHandler(func(e events.BombDropped) {
+			playersBombDrop[e.Player.SteamID64] += 1
+			playersBombDrop[0] += 1
+		})
+
 		err = p.ParseToEnd()
 		if err != nil {
 			log.Panic("failed to parse demo: ", err)
@@ -118,13 +131,14 @@ func main() {
 		players := p.GameState().Participants().Playing()
 		var stats []playerStats
 		for _, p := range players {
-			stats = append(stats, statsFor(p, playersFootStep, playersDuckKill, playersFlashedKill, playersAirborneKill, playersWallbangKill, playersSmokeKill, playersNoScopeKill, playersWeaponShot, playersWeaponReload, playersJump))
+			stats = append(stats, statsFor(p, playersFootStep, playersDuckKill, playersFlashedKill, playersAirborneKill, playersWallbangKill, playersSmokeKill, playersNoScopeKill, playersWeaponShot, playersWeaponReload, playersJump, playersBombDrop))
 		}
 
 		fmt.Println("Все игроки вместе сделали: ", playersFootStep[0], " шагов")
 		fmt.Println("Все игроки вместе сделали: ", playersWeaponShot[0], " выстрелов")
 		fmt.Println("Все игроки вместе сделали: ", playersWeaponReload[0], " перезарядок")
 		fmt.Println("Все игроки вместе сделали: ", playersJump[0], " прыжков")
+		fmt.Println("Все игроки в сумме дропнули бомбу: ", playersBombDrop[0], " раз(а)")
 
 		for _, player := range stats {
 			fmt.Println(player.formatString() + "\n")
@@ -181,6 +195,7 @@ type playerStats struct {
 	WeaponShots   int    `json:"weaponShots"`
 	WeaponReloads int    `json:"weaponReloads"`
 	PlayerJumps   int    `json:"playerJumps"`
+	BombDrops     int    `json:"bombDrops"`
 }
 
 func (s playerStats) formatString() string {
@@ -201,10 +216,11 @@ func (s playerStats) formatString() string {
 		"\nNoScopeKills:   " + strconv.Itoa(s.NoScopeKills) +
 		"\nWeaponShots:    " + strconv.Itoa(s.WeaponShots) +
 		"\nWeaponReloads:  " + strconv.Itoa(s.WeaponReloads) +
-		"\nJumps:          " + strconv.Itoa(s.PlayerJumps)
+		"\nJumps:          " + strconv.Itoa(s.PlayerJumps) +
+		"\nBombDrops       " + strconv.Itoa(s.BombDrops)
 }
 
-func statsFor(p *common.Player, fs playersFootSteps, dk playersDuckKills, fk playersFlashedKills, airk playersAirborneKills, wbk playersWallbangKills, sk playerSmokeKills, ns playerNoScopeKills, ws playerWeaponShots, wr playerWeaponReloads, pj playerJumps) playerStats {
+func statsFor(p *common.Player, fs playersFootSteps, dk playersDuckKills, fk playersFlashedKills, airk playersAirborneKills, wbk playersWallbangKills, sk playerSmokeKills, ns playerNoScopeKills, ws playerWeaponShots, wr playerWeaponReloads, pj playerJumps, bd playerBombDrops) playerStats {
 	return playerStats{
 		SteamID64:     p.SteamID64,
 		Name:          p.Name,
@@ -224,6 +240,7 @@ func statsFor(p *common.Player, fs playersFootSteps, dk playersDuckKills, fk pla
 		WeaponShots:   ws[p.SteamID64],
 		WeaponReloads: wr[p.SteamID64],
 		PlayerJumps:   pj[p.SteamID64],
+		BombDrops:     bd[p.SteamID64],
 	}
 }
 
