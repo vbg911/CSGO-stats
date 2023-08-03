@@ -6,10 +6,10 @@ import (
 	ex "github.com/markus-wa/demoinfocs-golang/v3/examples"
 	dem "github.com/markus-wa/demoinfocs-golang/v3/pkg/demoinfocs"
 	"github.com/markus-wa/demoinfocs-golang/v3/pkg/demoinfocs/common"
-	events "github.com/markus-wa/demoinfocs-golang/v3/pkg/demoinfocs/events"
+	"github.com/markus-wa/demoinfocs-golang/v3/pkg/demoinfocs/events"
 	"github.com/markus-wa/demoinfocs-golang/v3/pkg/demoinfocs/msg"
-	heatmap "github.com/markus-wa/go-heatmap/v2"
-	schemes "github.com/markus-wa/go-heatmap/v2/schemes"
+	"github.com/markus-wa/go-heatmap/v2"
+	"github.com/markus-wa/go-heatmap/v2/schemes"
 	"image"
 	"image/draw"
 	"image/jpeg"
@@ -85,9 +85,6 @@ func main() {
 			playersFootStep[e.Player.SteamID64] += 1
 			playersFootStep[0] += 1
 		})
-		p.RegisterEventHandler(func(e events.Kill) {
-			handleKill(e, playersDuckKill, playersFlashedKill, playersAirborneKill, playersWallbangKill, playersSmokeKill, playersNoScopeKill)
-		})
 
 		var (
 			mapMetadata ex.Map
@@ -101,12 +98,21 @@ func main() {
 			mapRadarImg = ex.GetMapRadar(header.MapName, msg.GetMapCrc())
 		})
 
+		var deathPoints []r2.Point
+		p.RegisterEventHandler(func(e events.Kill) {
+			if e.Victim != nil {
+				x, y := mapMetadata.TranslateScale(e.Victim.Position().X, e.Victim.Position().Y)
+				deathPoints = append(deathPoints, r2.Point{X: x, Y: y})
+			}
+			handleKill(e, playersDuckKill, playersFlashedKill, playersAirborneKill, playersWallbangKill, playersSmokeKill, playersNoScopeKill)
+		})
+
 		// Register handler for WeaponFire, triggered every time a shot is fired
-		var points []r2.Point
+		var firePoints []r2.Point
 		p.RegisterEventHandler(func(e events.WeaponFire) {
 			// Translate positions from in-game coordinates to radar overview image pixels
 			x, y := mapMetadata.TranslateScale(e.Shooter.Position().X, e.Shooter.Position().Y)
-			points = append(points, r2.Point{X: x, Y: y})
+			firePoints = append(firePoints, r2.Point{X: x, Y: y})
 			playersWeaponShot[e.Shooter.SteamID64] += 1
 			playersWeaponShot[0] += 1
 		})
@@ -121,7 +127,11 @@ func main() {
 			playersWeaponReload[0] += 1
 		})
 
+		var GrenadePoints []r2.Point
 		p.RegisterEventHandler(func(e events.GrenadeProjectileThrow) {
+			x, y := mapMetadata.TranslateScale(e.Projectile.Position().X, e.Projectile.Position().Y)
+			GrenadePoints = append(GrenadePoints, r2.Point{X: x, Y: y})
+
 			if e.Projectile.WeaponInstance.String() == "Smoke Grenade" {
 				playersSmoke[e.Projectile.Thrower.SteamID64] += 1
 				playersSmoke[0] += 1
@@ -151,12 +161,26 @@ func main() {
 				playersDecoyGrenade[e.Projectile.Thrower.SteamID64] += 1
 				playersDecoyGrenade[0] += 1
 			}
-
 		})
 
 		p.RegisterEventHandler(func(e events.BombDropped) {
 			playersBombDrop[e.Player.SteamID64] += 1
 			playersBombDrop[0] += 1
+		})
+
+		p.RegisterEventHandler(func(e events.RoundEnd) {
+			gs := p.GameState()
+			switch e.Winner {
+			case common.TeamTerrorists:
+				// Winner's score + 1 because it hasn't actually been updated yet
+				fmt.Printf("Round finished: winnerSide=T  ; score=%d:%d\n", gs.TeamTerrorists().Score()+1, gs.TeamCounterTerrorists().Score())
+			case common.TeamCounterTerrorists:
+				fmt.Printf("Round finished: winnerSide=CT ; score=%d:%d\n", gs.TeamCounterTerrorists().Score()+1, gs.TeamTerrorists().Score())
+			default:
+				// Probably match medic or something similar
+				fmt.Println("Round finished: No winner (tie)")
+			}
+			// Copy nade paths
 		})
 
 		err = p.ParseToEnd()
@@ -186,23 +210,30 @@ func main() {
 			fmt.Println(player.formatString() + "\n")
 		}
 		name, _ := strings.CutSuffix(e.Name(), ".dem")
-		generateHeatMap(points, mapRadarImg, name+".jpeg")
-		//fmt.Println(playersGrenade)
+		generateHeatMap(firePoints, mapRadarImg, name+".jpeg", "WeaponFire")
+		generateHeatMap(deathPoints, mapRadarImg, name+".jpeg", "PlayerDeath")
+		generateHeatMap(GrenadePoints, mapRadarImg, name+".jpeg", "GrenadeThrow")
 		println("\n")
 	}
 }
 
 func handleKill(e events.Kill, duckKills playersDuckKills, flashKills playersFlashedKills, airborneKills playersAirborneKills, wallbangKills playersWallbangKills, smokeKills playerSmokeKills, noScopeKills playerNoScopeKills) {
-	if e.Killer.IsDucking() {
-		duckKills[e.Killer.SteamID64] += 1
+	if e.Killer != nil {
+		if e.Killer.IsDucking() {
+			duckKills[e.Killer.SteamID64] += 1
+		}
 	}
 
-	if e.Killer.IsBlinded() {
-		flashKills[e.Killer.SteamID64] += 1
+	if e.Killer != nil {
+		if e.Killer.IsBlinded() {
+			flashKills[e.Killer.SteamID64] += 1
+		}
 	}
 
-	if e.Killer.IsAirborne() {
-		airborneKills[e.Killer.SteamID64] += 1
+	if e.Killer != nil {
+		if e.Killer.IsAirborne() {
+			airborneKills[e.Killer.SteamID64] += 1
+		}
 	}
 
 	if e.IsWallBang() {
@@ -305,7 +336,7 @@ func statsFor(p *common.Player, fs playersFootSteps, dk playersDuckKills, fk pla
 	}
 }
 
-func generateHeatMap(points []r2.Point, mapRadarImg image.Image, name string) {
+func generateHeatMap(points []r2.Point, mapRadarImg image.Image, name string, folder string) {
 	r2Bounds := r2.RectFromPoints(points...)
 	padding := float64(dotSize) / 2.0 // Calculating padding amount to avoid shrinkage by the heatmap library
 	bounds := image.Rectangle{
@@ -321,10 +352,6 @@ func generateHeatMap(points []r2.Point, mapRadarImg image.Image, name string) {
 		data = append(data, heatmap.P(p.X, p.Y*-1))
 	}
 
-	//
-	// Drawing the image
-	//
-
 	// Create output canvas and use map overview image as base
 	img := image.NewRGBA(mapRadarImg.Bounds())
 	draw.Draw(img, mapRadarImg.Bounds(), mapRadarImg, image.Point{}, draw.Over)
@@ -332,7 +359,7 @@ func generateHeatMap(points []r2.Point, mapRadarImg image.Image, name string) {
 	// Generate and draw heatmap overlay on top of the overview
 	imgHeatmap := heatmap.Heatmap(image.Rect(0, 0, bounds.Dx(), bounds.Dy()), data, dotSize, opacity, schemes.AlphaFire)
 	draw.Draw(img, bounds, imgHeatmap, image.Point{}, draw.Over)
-	f, err := os.Create("img/AlphaFire_" + name)
+	f, err := os.Create("img/" + folder + "/" + name)
 	// Write to stdout
 	err = jpeg.Encode(f, img, &jpeg.Options{Quality: jpegQuality})
 	checkError(err)
