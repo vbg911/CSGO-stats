@@ -3,14 +3,16 @@ package main
 import (
 	"fmt"
 	"github.com/golang/geo/r2"
+	"github.com/llgcode/draw2d/draw2dimg"
 	ex "github.com/markus-wa/demoinfocs-golang/v3/examples"
 	dem "github.com/markus-wa/demoinfocs-golang/v3/pkg/demoinfocs"
 	"github.com/markus-wa/demoinfocs-golang/v3/pkg/demoinfocs/common"
 	"github.com/markus-wa/demoinfocs-golang/v3/pkg/demoinfocs/events"
 	"github.com/markus-wa/demoinfocs-golang/v3/pkg/demoinfocs/msg"
-	"github.com/markus-wa/go-heatmap/v2"
+	heatmap "github.com/markus-wa/go-heatmap/v2"
 	"github.com/markus-wa/go-heatmap/v2/schemes"
 	"image"
+	"image/color"
 	"image/draw"
 	"image/jpeg"
 	"log"
@@ -43,6 +45,8 @@ const (
 	jpegQuality = 100
 )
 
+var demoName string
+
 func main() {
 	entries, err := os.ReadDir("./demos")
 	if err != nil {
@@ -52,6 +56,7 @@ func main() {
 	for _, e := range entries {
 		fmt.Println(e.Name())
 		f, err := os.Open("./demos/" + e.Name())
+		demoName, _ = strings.CutSuffix(e.Name(), ".dem")
 		if err != nil {
 			log.Panic("failed to open demo file: ", err)
 		}
@@ -62,7 +67,6 @@ func main() {
 
 		header, err := p.ParseHeader()
 		checkError(err)
-
 		playersFootStep := make(playersFootSteps, 11)
 		playersDuckKill := make(playersDuckKills, 10)
 		playersFlashedKill := make(playersFlashedKills, 10)
@@ -163,6 +167,18 @@ func main() {
 			}
 		})
 
+		nadeTrajectories := make(map[int64]*common.GrenadeProjectile) // Trajectories of all destroyed nades
+		p.RegisterEventHandler(func(e events.GrenadeProjectileDestroy) {
+			id := e.Projectile.UniqueID()
+			nadeTrajectories[id] = e.Projectile
+		})
+
+		infernos := make(map[int64]*common.Inferno)
+		p.RegisterEventHandler(func(e events.InfernoExpired) {
+			id := e.Inferno.UniqueID()
+			infernos[id] = e.Inferno
+		})
+
 		p.RegisterEventHandler(func(e events.BombDropped) {
 			playersBombDrop[e.Player.SteamID64] += 1
 			playersBombDrop[0] += 1
@@ -180,7 +196,14 @@ func main() {
 				// Probably match medic or something similar
 				fmt.Println("Round finished: No winner (tie)")
 			}
-			// Copy nade paths
+			generateTrajectories(mapMetadata, mapRadarImg, nadeTrajectories, infernos, "GrenadeTrajectories\\random", demoName+" №"+strconv.Itoa(gs.TotalRoundsPlayed()+1)+".jpeg")
+
+			for k := range nadeTrajectories {
+				delete(nadeTrajectories, k)
+			}
+			for k := range infernos {
+				delete(infernos, k)
+			}
 		})
 
 		err = p.ParseToEnd()
@@ -334,6 +357,110 @@ func statsFor(p *common.Player, fs playersFootSteps, dk playersDuckKills, fk pla
 		Flasbang:      flashbang[p.SteamID64],
 		Decoy:         decoy[p.SteamID64],
 	}
+}
+
+func buildInfernoPath(mapMetadata ex.Map, gc *draw2dimg.GraphicContext, vertices []r2.Point) {
+	xOrigin, yOrigin := mapMetadata.TranslateScale(vertices[0].X, vertices[0].Y)
+	gc.MoveTo(xOrigin, yOrigin)
+
+	for _, fire := range vertices[1:] {
+		x, y := mapMetadata.TranslateScale(fire.X, fire.Y)
+		gc.LineTo(x, y)
+	}
+
+	gc.LineTo(xOrigin, yOrigin)
+}
+
+func generateTrajectories(mapMetadata ex.Map, mapRadarImg image.Image, nadeMap map[int64]*common.GrenadeProjectile, infernos map[int64]*common.Inferno, folder string, name string) {
+	var (
+		colorFireNade    color.Color = color.RGBA{0xff, 0x00, 0x00, 0xff} // Red
+		colorInferno     color.Color = color.RGBA{0xff, 0xa5, 0x00, 0xff} // Orange
+		colorInfernoHull color.Color = color.RGBA{0xff, 0xff, 0x00, 0xff} // Yellow
+		colorHE          color.Color = color.RGBA{0x00, 0xff, 0x00, 0xff} // Green
+		colorFlash       color.Color = color.RGBA{0x00, 0x00, 0xff, 0xff} // Blue, because of the color on the nade
+		colorSmoke       color.Color = color.RGBA{0xbe, 0xbe, 0xbe, 0xff} // Light gray
+		colorDecoy       color.Color = color.RGBA{0x96, 0x4b, 0x00, 0xff} // Brown, because it's shit :)
+	)
+
+	// Create output canvas
+	dest := image.NewRGBA(mapRadarImg.Bounds())
+
+	// Draw image
+	draw.Draw(dest, dest.Bounds(), mapRadarImg, image.Point{}, draw.Src)
+
+	// Initialize the graphic context
+	gc := draw2dimg.NewGraphicContext(dest)
+
+	gc.SetFillColor(colorInferno)
+
+	// Calculate hulls
+	counter := 0
+	hulls := make([][]r2.Point, len(infernos))
+	for _, i := range infernos {
+		hulls[counter] = i.Fires().ConvexHull2D()
+		counter++
+	}
+
+	for _, hull := range hulls {
+		buildInfernoPath(mapMetadata, gc, hull)
+		gc.Fill()
+	}
+
+	// Then the outline
+	gc.SetStrokeColor(colorInfernoHull)
+	gc.SetLineWidth(1) // 1 px wide
+
+	for _, hull := range hulls {
+		buildInfernoPath(mapMetadata, gc, hull)
+		gc.FillStroke()
+	}
+
+	gc.SetLineWidth(1)                      // 1 px lines
+	gc.SetFillColor(color.RGBA{0, 0, 0, 0}) // No fill, alpha 0
+
+	for _, nade := range nadeMap {
+		// Set color
+		switch nade.WeaponInstance.Type {
+		case common.EqMolotov:
+			fallthrough
+		case common.EqIncendiary:
+			gc.SetStrokeColor(colorFireNade)
+
+		case common.EqHE:
+			gc.SetStrokeColor(colorHE)
+
+		case common.EqFlash:
+			gc.SetStrokeColor(colorFlash)
+
+		case common.EqSmoke:
+			gc.SetStrokeColor(colorSmoke)
+
+		case common.EqDecoy:
+			gc.SetStrokeColor(colorDecoy)
+
+		default:
+			// Set alpha to 0 so we don't draw unknown stuff
+			gc.SetStrokeColor(color.RGBA{0x00, 0x00, 0x00, 0x00})
+		}
+
+		// Draw path
+		x, y := mapMetadata.TranslateScale(nade.Trajectory[0].X, nade.Trajectory[0].Y)
+		gc.MoveTo(x, y) // Move to a position to start the new path
+
+		for _, pos := range nade.Trajectory[1:] {
+			x, y := mapMetadata.TranslateScale(pos.X, pos.Y)
+			gc.LineTo(x, y)
+		}
+		gc.FillStroke()
+	}
+	err := os.Mkdir("img/"+folder, 0666)
+	if err != nil && !os.IsExist(err) {
+	}
+	f, err := os.Create("img/" + folder + "/" + name)
+	err = jpeg.Encode(f, dest, &jpeg.Options{
+		Quality: 100,
+	})
+	checkError(err)
 }
 
 func generateHeatMap(points []r2.Point, mapRadarImg image.Image, name string, folder string) {
