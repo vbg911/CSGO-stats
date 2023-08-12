@@ -33,7 +33,7 @@ type MapStats struct {
 	TournamentName string         `json:"tournamentName"`
 	DemoHash       string         `json:"demoHash"`
 	DemoPath       string         `json:"demoPath"`
-	MapName        int            `json:"mapName"`
+	MapName        string         `json:"mapName"`
 	Players        []PlayerStats  `json:"players"`
 	FirePoints     []r2.Point     `json:"firePoints"`
 	DeathPoints    []r2.Point     `json:"deathPoints"`

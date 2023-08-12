@@ -1,6 +1,7 @@
 package demoparser
 
 import (
+	"crypto/md5"
 	"fmt"
 	"github.com/golang/geo/r2"
 	"github.com/llgcode/draw2d/draw2dimg"
@@ -15,7 +16,7 @@ import (
 	"image/color"
 	"image/draw"
 	"image/jpeg"
-	"log"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -209,7 +210,7 @@ func ParseDemo(tournamentName string, matchName string, filename string, demoPat
 
 	err = p.ParseToEnd()
 	if err != nil {
-		log.Panic("failed to parse demo: ", err)
+		return structures.MapStats{}, err
 	}
 
 	players := p.GameState().Participants().Playing()
@@ -230,6 +231,19 @@ func ParseDemo(tournamentName string, matchName string, filename string, demoPat
 	fmt.Println("Все игроки в сумме кинули Flashbang: ", playersFlashbang[0], " раз(а)")
 	fmt.Println("Все игроки в сумме кинули Decoy: ", playersDecoyGrenade[0], " раз(а)")
 
+	overallstats := make(map[string]int)
+	overallstats["playersFootStep"] = playersFootStep[0]
+	overallstats["playersWeaponShot"] = playersWeaponShot[0]
+	overallstats["playersWeaponReload"] = playersWeaponReload[0]
+	overallstats["playersJump"] = playersJump[0]
+	overallstats["playersBombDrop"] = playersBombDrop[0]
+	overallstats["playersSmoke"] = playersSmoke[0]
+	overallstats["playersHEGrenade"] = playersHEGrenade[0]
+	overallstats["playersMolotov"] = playersMolotov[0]
+	overallstats["playersIncendiaryGrenade"] = playersIncendiaryGrenade[0]
+	overallstats["playersFlashbang"] = playersFlashbang[0]
+	overallstats["playersDecoyGrenade"] = playersDecoyGrenade[0]
+
 	for _, player := range stats {
 		fmt.Println(player.FormatString() + "\n")
 	}
@@ -237,7 +251,17 @@ func ParseDemo(tournamentName string, matchName string, filename string, demoPat
 	generateHeatMap(deathPoints, mapRadarImg, demoName+".jpeg", "PlayerDeath")
 	generateHeatMap(GrenadePoints, mapRadarImg, demoName+".jpeg", "GrenadeThrow")
 	println("\n")
-	return structures.MapStats{}, nil
+	return structures.MapStats{
+		TournamentName: tournamentName,
+		DemoHash:       fileMD5(demoPath),
+		DemoPath:       demoPath,
+		MapName:        header.MapName,
+		Players:        stats,
+		FirePoints:     firePoints,
+		DeathPoints:    deathPoints,
+		GrenadePoints:  GrenadePoints,
+		OverallStats:   overallstats,
+	}, nil
 }
 
 func buildInfernoPath(mapMetadata ex.Map, gc *draw2dimg.GraphicContext, vertices []r2.Point) {
@@ -410,4 +434,18 @@ func checkError(err error) {
 	if err != nil {
 		panic(err)
 	}
+}
+
+func fileMD5(path string) string {
+	h := md5.New()
+	f, err := os.Open(path)
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+	_, err = io.Copy(h, f)
+	if err != nil {
+		panic(err)
+	}
+	return fmt.Sprintf("%x", h.Sum(nil))
 }
