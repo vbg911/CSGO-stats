@@ -2,9 +2,14 @@ package structures
 
 import (
 	"github.com/golang/geo/r2"
+	ex "github.com/markus-wa/demoinfocs-golang/v3/examples"
+	"github.com/markus-wa/demoinfocs-golang/v3/pkg/demoinfocs/common"
+	"image"
 	"strconv"
 )
 
+type NadeTrajectories map[int]map[int64]*common.GrenadeProjectile
+type Infernos map[int]map[int64]*common.Inferno
 type PlayersFootSteps map[uint64]int
 type PlayersDuckKills map[uint64]int
 type PlayersFlashedKills map[uint64]int
@@ -30,15 +35,20 @@ type MatchStats struct {
 }
 
 type MapStats struct {
-	TournamentName string         `json:"tournamentName"`
-	DemoHash       string         `json:"demoHash"`
-	DemoPath       string         `json:"demoPath"`
-	MapName        string         `json:"mapName"`
-	Players        []PlayerStats  `json:"players"`
-	FirePoints     []r2.Point     `json:"firePoints"`
-	DeathPoints    []r2.Point     `json:"deathPoints"`
-	GrenadePoints  []r2.Point     `json:"grenadePoints"`
-	OverallStats   map[string]int `json:"overallStats"`
+	TournamentName   string `json:"tournamentName"`
+	DemoHash         string `json:"demoHash"`
+	DemoPath         string `json:"demoPath"`
+	MapMetadata      ex.Map
+	MapRadarImg      image.Image
+	MapName          string        `json:"mapName"`
+	Players          []PlayerStats `json:"players"`
+	FirePoints       []r2.Point    `json:"firePoints"`
+	DeathPoints      []r2.Point    `json:"deathPoints"`
+	GrenadePoints    []r2.Point    `json:"grenadePoints"`
+	NadesProjectiles NadeTrajectories
+	Infernos
+
+	OverallStats map[string]int `json:"overallStats"`
 }
 
 type PlayerStats struct {

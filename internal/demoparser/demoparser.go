@@ -1,32 +1,22 @@
 package demoparser
 
 import (
+	"CSGO-stats/internal/visualization"
 	"crypto/md5"
 	"fmt"
 	"github.com/golang/geo/r2"
-	"github.com/llgcode/draw2d/draw2dimg"
 	ex "github.com/markus-wa/demoinfocs-golang/v3/examples"
 	dem "github.com/markus-wa/demoinfocs-golang/v3/pkg/demoinfocs"
 	"github.com/markus-wa/demoinfocs-golang/v3/pkg/demoinfocs/common"
 	"github.com/markus-wa/demoinfocs-golang/v3/pkg/demoinfocs/events"
 	"github.com/markus-wa/demoinfocs-golang/v3/pkg/demoinfocs/msg"
-	"github.com/markus-wa/go-heatmap/v2"
-	"github.com/markus-wa/go-heatmap/v2/schemes"
 	"image"
-	"image/color"
-	"image/draw"
-	"image/jpeg"
 	"io"
 	"os"
 	"strconv"
 	"strings"
 )
 import "CSGO-stats/internal/structures"
-
-const (
-	dotSize = 20
-	opacity = 128
-)
 
 func ParseDemo(tournamentName string, matchName string, filename string, demoPath string) (structures.MapStats, error) {
 	demoName, _ := strings.CutSuffix(filename, ".dem")
@@ -169,16 +159,18 @@ func ParseDemo(tournamentName string, matchName string, filename string, demoPat
 		}
 	})
 
-	nadeTrajectories := make(map[int64]*common.GrenadeProjectile) // Trajectories of all destroyed nades
+	nadeTrajectories := make(structures.NadeTrajectories) // Trajectories of all destroyed nades
 	p.RegisterEventHandler(func(e events.GrenadeProjectileDestroy) {
+		gs := p.GameState()
 		id := e.Projectile.UniqueID()
-		nadeTrajectories[id] = e.Projectile
+		nadeTrajectories[gs.TotalRoundsPlayed()][id] = e.Projectile //todo fix panic: assignment to entry in nil map
 	})
 
-	infernos := make(map[int64]*common.Inferno)
+	infernos := make(structures.Infernos)
 	p.RegisterEventHandler(func(e events.InfernoExpired) {
+		gs := p.GameState()
 		id := e.Inferno.UniqueID()
-		infernos[id] = e.Inferno
+		infernos[gs.TotalRoundsPlayed()][id] = e.Inferno //todo fix panic: assignment to entry in nil map
 	})
 
 	p.RegisterEventHandler(func(e events.BombDropped) {
@@ -198,7 +190,7 @@ func ParseDemo(tournamentName string, matchName string, filename string, demoPat
 			// Probably match medic or something similar
 			fmt.Println("Round finished: No winner (tie)")
 		}
-		generateTrajectories(mapMetadata, mapRadarImg, nadeTrajectories, infernos, "GrenadeTrajectories\\random", demoName+" №"+strconv.Itoa(gs.TotalRoundsPlayed()+1)+".jpeg")
+		visualization.GenerateTrajectories(mapMetadata, mapRadarImg, nadeTrajectories, infernos, "GrenadeTrajectories\\test1", demoName+" №"+strconv.Itoa(gs.TotalRoundsPlayed()+1)+".jpeg")
 
 		for k := range nadeTrajectories {
 			delete(nadeTrajectories, k)
@@ -244,13 +236,9 @@ func ParseDemo(tournamentName string, matchName string, filename string, demoPat
 	overallstats["playersFlashbang"] = playersFlashbang[0]
 	overallstats["playersDecoyGrenade"] = playersDecoyGrenade[0]
 
-	for _, player := range stats {
-		fmt.Println(player.FormatString() + "\n")
-	}
-	generateHeatMap(firePoints, mapRadarImg, demoName+".jpeg", "WeaponFire")
-	generateHeatMap(deathPoints, mapRadarImg, demoName+".jpeg", "PlayerDeath")
-	generateHeatMap(GrenadePoints, mapRadarImg, demoName+".jpeg", "GrenadeThrow")
-	println("\n")
+	visualization.GenerateHeatMap(firePoints, mapRadarImg, demoName+".jpeg", "WeaponFire")
+	visualization.GenerateHeatMap(deathPoints, mapRadarImg, demoName+".jpeg", "PlayerDeath")
+	visualization.GenerateHeatMap(GrenadePoints, mapRadarImg, demoName+".jpeg", "GrenadeThrow")
 	return structures.MapStats{
 		TournamentName: tournamentName,
 		DemoHash:       fileMD5(demoPath),
@@ -262,142 +250,6 @@ func ParseDemo(tournamentName string, matchName string, filename string, demoPat
 		GrenadePoints:  GrenadePoints,
 		OverallStats:   overallstats,
 	}, nil
-}
-
-func buildInfernoPath(mapMetadata ex.Map, gc *draw2dimg.GraphicContext, vertices []r2.Point) {
-	xOrigin, yOrigin := mapMetadata.TranslateScale(vertices[0].X, vertices[0].Y)
-	gc.MoveTo(xOrigin, yOrigin)
-
-	for _, fire := range vertices[1:] {
-		x, y := mapMetadata.TranslateScale(fire.X, fire.Y)
-		gc.LineTo(x, y)
-	}
-
-	gc.LineTo(xOrigin, yOrigin)
-}
-
-func generateTrajectories(mapMetadata ex.Map, mapRadarImg image.Image, nadeMap map[int64]*common.GrenadeProjectile, infernos map[int64]*common.Inferno, folder string, name string) {
-	var (
-		colorFireNade    color.Color = color.RGBA{0xff, 0x00, 0x00, 0xff} // Red
-		colorInferno     color.Color = color.RGBA{0xff, 0xa5, 0x00, 0xff} // Orange
-		colorInfernoHull color.Color = color.RGBA{0xff, 0xff, 0x00, 0xff} // Yellow
-		colorHE          color.Color = color.RGBA{0x00, 0xff, 0x00, 0xff} // Green
-		colorFlash       color.Color = color.RGBA{0x00, 0x00, 0xff, 0xff} // Blue, because of the color on the nade
-		colorSmoke       color.Color = color.RGBA{0xbe, 0xbe, 0xbe, 0xff} // Light gray
-		colorDecoy       color.Color = color.RGBA{0x96, 0x4b, 0x00, 0xff} // Brown, because it's shit :)
-	)
-
-	// Create output canvas
-	dest := image.NewRGBA(mapRadarImg.Bounds())
-
-	// Draw image
-	draw.Draw(dest, dest.Bounds(), mapRadarImg, image.Point{}, draw.Src)
-
-	// Initialize the graphic context
-	gc := draw2dimg.NewGraphicContext(dest)
-
-	gc.SetFillColor(colorInferno)
-
-	// Calculate hulls
-	counter := 0
-	hulls := make([][]r2.Point, len(infernos))
-	for _, i := range infernos {
-		hulls[counter] = i.Fires().ConvexHull2D()
-		counter++
-	}
-
-	for _, hull := range hulls {
-		buildInfernoPath(mapMetadata, gc, hull)
-		gc.Fill()
-	}
-
-	// Then the outline
-	gc.SetStrokeColor(colorInfernoHull)
-	gc.SetLineWidth(1) // 1 px wide
-
-	for _, hull := range hulls {
-		buildInfernoPath(mapMetadata, gc, hull)
-		gc.FillStroke()
-	}
-
-	gc.SetLineWidth(1)                      // 1 px lines
-	gc.SetFillColor(color.RGBA{0, 0, 0, 0}) // No fill, alpha 0
-
-	for _, nade := range nadeMap {
-		// Set color
-		switch nade.WeaponInstance.Type {
-		case common.EqMolotov:
-			fallthrough
-		case common.EqIncendiary:
-			gc.SetStrokeColor(colorFireNade)
-
-		case common.EqHE:
-			gc.SetStrokeColor(colorHE)
-
-		case common.EqFlash:
-			gc.SetStrokeColor(colorFlash)
-
-		case common.EqSmoke:
-			gc.SetStrokeColor(colorSmoke)
-
-		case common.EqDecoy:
-			gc.SetStrokeColor(colorDecoy)
-
-		default:
-			// Set alpha to 0 so we don't draw unknown stuff
-			gc.SetStrokeColor(color.RGBA{0x00, 0x00, 0x00, 0x00})
-		}
-
-		// Draw path
-		x, y := mapMetadata.TranslateScale(nade.Trajectory[0].X, nade.Trajectory[0].Y)
-		gc.MoveTo(x, y) // Move to a position to start the new path
-
-		for _, pos := range nade.Trajectory[1:] {
-			x, y := mapMetadata.TranslateScale(pos.X, pos.Y)
-			gc.LineTo(x, y)
-		}
-		gc.FillStroke()
-	}
-	err := os.Mkdir("img/"+folder, 0666)
-	if err != nil && !os.IsExist(err) {
-	}
-	f, err := os.Create("img/" + folder + "/" + name)
-	err = jpeg.Encode(f, dest, &jpeg.Options{
-		Quality: 100,
-	})
-	checkError(err)
-}
-
-func generateHeatMap(points []r2.Point, mapRadarImg image.Image, name string, folder string) {
-	r2Bounds := r2.RectFromPoints(points...)
-	padding := float64(dotSize) / 2.0 // Calculating padding amount to avoid shrinkage by the heatmap library
-	bounds := image.Rectangle{
-		Min: image.Point{X: int(r2Bounds.X.Lo - padding), Y: int(r2Bounds.Y.Lo - padding)},
-		Max: image.Point{X: int(r2Bounds.X.Hi + padding), Y: int(r2Bounds.Y.Hi + padding)},
-	}
-
-	// Transform r2.Points into heatmap.DataPoints
-	data := make([]heatmap.DataPoint, 0, len(points))
-
-	for _, p := range points[1:] {
-		// Invert Y since go-heatmap expects data to be ordered from bottom to top
-		data = append(data, heatmap.P(p.X, p.Y*-1))
-	}
-
-	// Create output canvas and use map overview image as base
-	img := image.NewRGBA(mapRadarImg.Bounds())
-	draw.Draw(img, mapRadarImg.Bounds(), mapRadarImg, image.Point{}, draw.Over)
-
-	// Generate and draw heatmap overlay on top of the overview
-	imgHeatmap := heatmap.Heatmap(image.Rect(0, 0, bounds.Dx(), bounds.Dy()), data, dotSize, opacity, schemes.AlphaFire)
-	draw.Draw(img, bounds, imgHeatmap, image.Point{}, draw.Over)
-	err := os.Mkdir("img/"+folder, 0666)
-	if err != nil && !os.IsExist(err) {
-	}
-	f, err := os.Create("img/" + folder + "/" + name)
-	// Write to stdout
-	err = jpeg.Encode(f, img, &jpeg.Options{Quality: 100})
-	checkError(err)
 }
 
 func statsFor(p *common.Player, fs structures.PlayersFootSteps, dk structures.PlayersDuckKills, fk structures.PlayersFlashedKills, airk structures.PlayersAirborneKills, wbk structures.PlayersWallbangKills, sk structures.PlayerSmokeKills, ns structures.PlayerNoScopeKills, ws structures.PlayerWeaponShots, wr structures.PlayerWeaponReloads, pj structures.PlayerJumps, bd structures.PlayerBombDrops, smoke structures.PlayerSmokes, he structures.PlayerHEGrenades, molotov structures.PlayerMolotovs, ctMoly structures.PlayerIncendiaryGrenades, flashbang structures.PlayerFlashbangs, decoy structures.PlayerDecoyGrenades) structures.PlayerStats {

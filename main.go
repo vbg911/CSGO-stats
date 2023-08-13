@@ -29,14 +29,15 @@ func main() {
 					for _, e := range maps {
 						fmt.Println("Tournament: " + tournament + " match: " + match + " file: " + e.Name())
 						pathToDemo := demoFolder + "/" + tournament + "/" + match + "/" + e.Name()
-						mapStats, err := demoparser.ParseDemo(tournament, match, e.Name(), pathToDemo)
-						fmt.Println(mapStats)
+						_, err := demoparser.ParseDemo(tournament, match, e.Name(), pathToDemo)
+						//fmt.Println(mapStats)
 						checkError(err)
 					}
 				}
 			}
 		}
 	}
+
 }
 
 func checkError(err error) {
