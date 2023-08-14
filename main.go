@@ -31,13 +31,24 @@ func main() {
 						fmt.Println("Tournament: " + tournament + " match: " + match + " file: " + e.Name())
 						pathToDemo := demoFolder + "/" + tournament + "/" + match + "/" + e.Name()
 						mapStats, err := demoparser.ParseDemo(tournament, match, e.Name(), pathToDemo)
-						//fmt.Println(mapStats)
+
+						fmt.Println("Все игроки вместе сделали: ", mapStats.PlayersFootStep[0], " шагов")
+						fmt.Println("Все игроки вместе сделали: ", mapStats.PlayersWeaponShot[0], " выстрелов")
+						fmt.Println("Все игроки вместе сделали: ", mapStats.PlayersWeaponReload[0], " перезарядок")
+						fmt.Println("Все игроки вместе сделали: ", mapStats.PlayersJump[0], " прыжков")
+						fmt.Println("Все игроки в сумме дропнули бомбу: ", mapStats.PlayersBombDrop[0], " раз(а)")
+						fmt.Println("Все игроки в сумме кинули Smoke: ", mapStats.PlayersSmoke[0], " раз(а)")
+						fmt.Println("Все игроки в сумме кинули HE Grenade: ", mapStats.PlayersHEGrenade[0], " раз(а)")
+						fmt.Println("Все игроки в сумме кинули Molotov: ", mapStats.PlayersMolotov[0], " раз(а)")
+						fmt.Println("Все игроки в сумме кинули Incendiary Grenade: ", mapStats.PlayersIncendiaryGrenade[0], " раз(а)")
+						fmt.Println("Все игроки в сумме кинули Flashbang: ", mapStats.PlayersFlashbang[0], " раз(а)")
+						fmt.Println("Все игроки в сумме кинули Decoy: ", mapStats.PlayersDecoyGrenade[0], " раз(а)")
 
 						visualization.GenerateHeatMap(mapStats.FirePoints, mapStats.MapRadarImg, mapStats.DemoName+".jpeg", "WeaponFire")
 						visualization.GenerateHeatMap(mapStats.DeathPoints, mapStats.MapRadarImg, mapStats.DemoName+".jpeg", "PlayerDeath")
 						visualization.GenerateHeatMap(mapStats.GrenadePoints, mapStats.MapRadarImg, mapStats.DemoName+".jpeg", "GrenadeThrow")
 
-						visualization.GenerateTrajectories(mapStats.MapMetadata, mapStats.MapRadarImg, mapStats.NadesProjectiles, mapStats.NadesInferno, "GrenadeTrajectories\\test4", mapStats.DemoName+".jpeg")
+						visualization.GenerateTrajectories(mapStats.MapMetadata, mapStats.MapRadarImg, mapStats.NadesProjectiles, mapStats.NadesInferno, "GrenadeTrajectories\\"+mapStats.TournamentName, mapStats.DemoName+".jpeg")
 
 						checkError(err)
 					}

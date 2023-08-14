@@ -157,11 +157,13 @@ func ParseDemo(tournamentName string, matchName string, filename string, demoPat
 		}
 	})
 
-	nadeTrajectories := make(structures.NadeTrajectories) // Trajectories of all destroyed nades
+	nadeTrajectories := make(structures.NadeTrajectories)
 	p.RegisterEventHandler(func(e events.GrenadeProjectileDestroy) {
 		gs := p.GameState()
 		id := e.Projectile.UniqueID()
-		nadeTrajectories[gs.TotalRoundsPlayed()] = make(map[int64]*common.GrenadeProjectile)
+		if nadeTrajectories[gs.TotalRoundsPlayed()] == nil {
+			nadeTrajectories[gs.TotalRoundsPlayed()] = make(map[int64]*common.GrenadeProjectile)
+		}
 		nadeTrajectories[gs.TotalRoundsPlayed()][id] = e.Projectile
 	})
 
@@ -169,7 +171,9 @@ func ParseDemo(tournamentName string, matchName string, filename string, demoPat
 	p.RegisterEventHandler(func(e events.InfernoExpired) {
 		gs := p.GameState()
 		id := e.Inferno.UniqueID()
-		infernos[gs.TotalRoundsPlayed()] = make(map[int64]*common.Inferno)
+		if infernos[gs.TotalRoundsPlayed()] == nil {
+			infernos[gs.TotalRoundsPlayed()] = make(map[int64]*common.Inferno)
+		}
 		infernos[gs.TotalRoundsPlayed()][id] = e.Inferno
 	})
 
@@ -202,18 +206,6 @@ func ParseDemo(tournamentName string, matchName string, filename string, demoPat
 	for _, p := range players {
 		stats = append(stats, statsFor(p, playersFootStep, playersDuckKill, playersFlashedKill, playersAirborneKill, playersWallbangKill, playersSmokeKill, playersNoScopeKill, playersWeaponShot, playersWeaponReload, playersJump, playersBombDrop, playersSmoke, playersHEGrenade, playersMolotov, playersIncendiaryGrenade, playersFlashbang, playersDecoyGrenade))
 	}
-
-	fmt.Println("Все игроки вместе сделали: ", playersFootStep[0], " шагов")
-	fmt.Println("Все игроки вместе сделали: ", playersWeaponShot[0], " выстрелов")
-	fmt.Println("Все игроки вместе сделали: ", playersWeaponReload[0], " перезарядок")
-	fmt.Println("Все игроки вместе сделали: ", playersJump[0], " прыжков")
-	fmt.Println("Все игроки в сумме дропнули бомбу: ", playersBombDrop[0], " раз(а)")
-	fmt.Println("Все игроки в сумме кинули Smoke: ", playersSmoke[0], " раз(а)")
-	fmt.Println("Все игроки в сумме кинули HE Grenade: ", playersHEGrenade[0], " раз(а)")
-	fmt.Println("Все игроки в сумме кинули Molotov: ", playersMolotov[0], " раз(а)")
-	fmt.Println("Все игроки в сумме кинули Incendiary Grenade: ", playersIncendiaryGrenade[0], " раз(а)")
-	fmt.Println("Все игроки в сумме кинули Flashbang: ", playersFlashbang[0], " раз(а)")
-	fmt.Println("Все игроки в сумме кинули Decoy: ", playersDecoyGrenade[0], " раз(а)")
 
 	return structures.MapStats{
 		TournamentName:           tournamentName,
