@@ -2,6 +2,7 @@ package main
 
 import (
 	"CSGO-stats/internal/demoparser"
+	"CSGO-stats/internal/visualization"
 	"fmt"
 	"os"
 )
@@ -29,8 +30,15 @@ func main() {
 					for _, e := range maps {
 						fmt.Println("Tournament: " + tournament + " match: " + match + " file: " + e.Name())
 						pathToDemo := demoFolder + "/" + tournament + "/" + match + "/" + e.Name()
-						_, err := demoparser.ParseDemo(tournament, match, e.Name(), pathToDemo)
+						mapStats, err := demoparser.ParseDemo(tournament, match, e.Name(), pathToDemo)
 						//fmt.Println(mapStats)
+
+						visualization.GenerateHeatMap(mapStats.FirePoints, mapStats.MapRadarImg, mapStats.DemoName+".jpeg", "WeaponFire")
+						visualization.GenerateHeatMap(mapStats.DeathPoints, mapStats.MapRadarImg, mapStats.DemoName+".jpeg", "PlayerDeath")
+						visualization.GenerateHeatMap(mapStats.GrenadePoints, mapStats.MapRadarImg, mapStats.DemoName+".jpeg", "GrenadeThrow")
+
+						visualization.GenerateTrajectories(mapStats.MapMetadata, mapStats.MapRadarImg, mapStats.NadesProjectiles, mapStats.NadesInferno, "GrenadeTrajectories\\test4", mapStats.DemoName+".jpeg")
+
 						checkError(err)
 					}
 				}

@@ -33,15 +33,16 @@ func buildInfernoPath(mapMetadata ex.Map, gc *draw2dimg.GraphicContext, vertices
 	gc.LineTo(xOrigin, yOrigin)
 }
 
+// GenerateTrajectories todo проблема с обработкой гранат, может не правильно хранятся
 func GenerateTrajectories(mapMetadata ex.Map, mapRadarImg image.Image, matchNades structures.NadeTrajectories, infernos structures.Infernos, folder string, name string) {
 	var (
-		colorFireNade    color.Color = color.RGBA{0xff, 0x00, 0x00, 0xff} // Red
-		colorInferno     color.Color = color.RGBA{0xff, 0xa5, 0x00, 0xff} // Orange
-		colorInfernoHull color.Color = color.RGBA{0xff, 0xff, 0x00, 0xff} // Yellow
-		colorHE          color.Color = color.RGBA{0x00, 0xff, 0x00, 0xff} // Green
-		colorFlash       color.Color = color.RGBA{0x00, 0x00, 0xff, 0xff} // Blue, because of the color on the nade
-		colorSmoke       color.Color = color.RGBA{0xbe, 0xbe, 0xbe, 0xff} // Light gray
-		colorDecoy       color.Color = color.RGBA{0x96, 0x4b, 0x00, 0xff} // Brown, because it's shit :)
+		colorFireNade color.Color = color.RGBA{0xff, 0x00, 0x00, 0xff} // Red
+		colorInferno  color.Color = color.RGBA{0xff, 0xa5, 0x00, 0xff} // Orange
+		//colorInfernoHull color.Color = color.RGBA{0xff, 0xff, 0x00, 0xff} // Yellow
+		colorHE    color.Color = color.RGBA{0x00, 0xff, 0x00, 0xff} // Green
+		colorFlash color.Color = color.RGBA{0x00, 0x00, 0xff, 0xff} // Blue, because of the color on the nade
+		colorSmoke color.Color = color.RGBA{0xbe, 0xbe, 0xbe, 0xff} // Light gray
+		colorDecoy color.Color = color.RGBA{0x96, 0x4b, 0x00, 0xff} // Brown, because it's shit :)
 	)
 
 	// Create output canvas
@@ -60,14 +61,15 @@ func GenerateTrajectories(mapMetadata ex.Map, mapRadarImg image.Image, matchNade
 	for i, round := range matchNades {
 		// Set color
 
-		counter := 0
+		/*counter := 0
 		hulls := make([][]r2.Point, len(infernos))
-		for _, fires := range infernos {
-			for _, fire := range fires {
-				hulls[counter] = fire.Fires().ConvexHull2D()
-				counter++
-			}
+
+		for _, fire := range infernos[i] {
+			hulls[counter] = fire.Fires().ConvexHull2D()
+			counter++
 		}
+
+		fmt.Println(hulls)
 
 		for _, hull := range hulls {
 			buildInfernoPath(mapMetadata, gc, hull)
@@ -82,7 +84,7 @@ func GenerateTrajectories(mapMetadata ex.Map, mapRadarImg image.Image, matchNade
 			buildInfernoPath(mapMetadata, gc, hull)
 			gc.FillStroke()
 		}
-
+		*/
 		gc.SetLineWidth(1)                      // 1 px lines
 		gc.SetFillColor(color.RGBA{0, 0, 0, 0}) // No fill, alpha 0
 
@@ -124,7 +126,7 @@ func GenerateTrajectories(mapMetadata ex.Map, mapRadarImg image.Image, matchNade
 		err := os.Mkdir("img/"+folder, 0666)
 		if err != nil && !os.IsExist(err) {
 		}
-		f, err := os.Create("img/" + folder + "/" + strconv.Itoa(i) + name)
+		f, err := os.Create("img/" + folder + "/" + strconv.Itoa(i) + "-" + name)
 		err = jpeg.Encode(f, dest, &jpeg.Options{
 			Quality: 100,
 		})

@@ -1,7 +1,6 @@
 package demoparser
 
 import (
-	"CSGO-stats/internal/visualization"
 	"crypto/md5"
 	"fmt"
 	"github.com/golang/geo/r2"
@@ -13,7 +12,6 @@ import (
 	"image"
 	"io"
 	"os"
-	"strconv"
 	"strings"
 )
 import "CSGO-stats/internal/structures"
@@ -29,23 +27,23 @@ func ParseDemo(tournamentName string, matchName string, filename string, demoPat
 	header, err := p.ParseHeader()
 	checkError(err)
 
-	playersFootStep := make(structures.PlayersFootSteps, 11)
-	playersDuckKill := make(structures.PlayersDuckKills, 10)
-	playersFlashedKill := make(structures.PlayersFlashedKills, 10)
-	playersAirborneKill := make(structures.PlayersAirborneKills, 10)
-	playersWallbangKill := make(structures.PlayersWallbangKills, 10)
-	playersSmokeKill := make(structures.PlayerSmokeKills, 10)
-	playersNoScopeKill := make(structures.PlayerNoScopeKills, 10)
-	playersWeaponShot := make(structures.PlayerWeaponShots, 11)
-	playersWeaponReload := make(structures.PlayerWeaponReloads, 11)
-	playersJump := make(structures.PlayerJumps, 11)
-	playersSmoke := make(structures.PlayerSmokes, 11)
-	playersHEGrenade := make(structures.PlayerHEGrenades, 11)
-	playersBombDrop := make(structures.PlayerBombDrops, 11)
-	playersFlashbang := make(structures.PlayerFlashbangs, 11)
-	playersIncendiaryGrenade := make(structures.PlayerIncendiaryGrenades, 11)
-	playersMolotov := make(structures.PlayerMolotovs, 11)
-	playersDecoyGrenade := make(structures.PlayerDecoyGrenades, 11)
+	playersFootStep := make(structures.FootSteps, 11)
+	playersDuckKill := make(structures.DuckKills, 10)
+	playersFlashedKill := make(structures.FlashedKills, 10)
+	playersAirborneKill := make(structures.AirborneKills, 10)
+	playersWallbangKill := make(structures.WallbangKills, 10)
+	playersSmokeKill := make(structures.SmokeKills, 10)
+	playersNoScopeKill := make(structures.NoScopeKills, 10)
+	playersWeaponShot := make(structures.WeaponShots, 11)
+	playersWeaponReload := make(structures.WeaponReloads, 11)
+	playersJump := make(structures.Jumps, 11)
+	playersSmoke := make(structures.Smokes, 11)
+	playersHEGrenade := make(structures.HEGrenades, 11)
+	playersBombDrop := make(structures.BombDrops, 11)
+	playersFlashbang := make(structures.Flashbangs, 11)
+	playersIncendiaryGrenade := make(structures.IncendiaryGrenades, 11)
+	playersMolotov := make(structures.Molotovs, 11)
+	playersDecoyGrenade := make(structures.DecoyGrenades, 11)
 
 	p.RegisterEventHandler(func(e events.Footstep) {
 		playersFootStep[e.Player.SteamID64] += 1
@@ -163,14 +161,16 @@ func ParseDemo(tournamentName string, matchName string, filename string, demoPat
 	p.RegisterEventHandler(func(e events.GrenadeProjectileDestroy) {
 		gs := p.GameState()
 		id := e.Projectile.UniqueID()
-		nadeTrajectories[gs.TotalRoundsPlayed()][id] = e.Projectile //todo fix panic: assignment to entry in nil map
+		nadeTrajectories[gs.TotalRoundsPlayed()] = make(map[int64]*common.GrenadeProjectile)
+		nadeTrajectories[gs.TotalRoundsPlayed()][id] = e.Projectile
 	})
 
 	infernos := make(structures.Infernos)
 	p.RegisterEventHandler(func(e events.InfernoExpired) {
 		gs := p.GameState()
 		id := e.Inferno.UniqueID()
-		infernos[gs.TotalRoundsPlayed()][id] = e.Inferno //todo fix panic: assignment to entry in nil map
+		infernos[gs.TotalRoundsPlayed()] = make(map[int64]*common.Inferno)
+		infernos[gs.TotalRoundsPlayed()][id] = e.Inferno
 	})
 
 	p.RegisterEventHandler(func(e events.BombDropped) {
@@ -189,14 +189,6 @@ func ParseDemo(tournamentName string, matchName string, filename string, demoPat
 		default:
 			// Probably match medic or something similar
 			fmt.Println("Round finished: No winner (tie)")
-		}
-		visualization.GenerateTrajectories(mapMetadata, mapRadarImg, nadeTrajectories, infernos, "GrenadeTrajectories\\test1", demoName+" №"+strconv.Itoa(gs.TotalRoundsPlayed()+1)+".jpeg")
-
-		for k := range nadeTrajectories {
-			delete(nadeTrajectories, k)
-		}
-		for k := range infernos {
-			delete(infernos, k)
 		}
 	})
 
@@ -223,36 +215,36 @@ func ParseDemo(tournamentName string, matchName string, filename string, demoPat
 	fmt.Println("Все игроки в сумме кинули Flashbang: ", playersFlashbang[0], " раз(а)")
 	fmt.Println("Все игроки в сумме кинули Decoy: ", playersDecoyGrenade[0], " раз(а)")
 
-	overallstats := make(map[string]int)
-	overallstats["playersFootStep"] = playersFootStep[0]
-	overallstats["playersWeaponShot"] = playersWeaponShot[0]
-	overallstats["playersWeaponReload"] = playersWeaponReload[0]
-	overallstats["playersJump"] = playersJump[0]
-	overallstats["playersBombDrop"] = playersBombDrop[0]
-	overallstats["playersSmoke"] = playersSmoke[0]
-	overallstats["playersHEGrenade"] = playersHEGrenade[0]
-	overallstats["playersMolotov"] = playersMolotov[0]
-	overallstats["playersIncendiaryGrenade"] = playersIncendiaryGrenade[0]
-	overallstats["playersFlashbang"] = playersFlashbang[0]
-	overallstats["playersDecoyGrenade"] = playersDecoyGrenade[0]
-
-	visualization.GenerateHeatMap(firePoints, mapRadarImg, demoName+".jpeg", "WeaponFire")
-	visualization.GenerateHeatMap(deathPoints, mapRadarImg, demoName+".jpeg", "PlayerDeath")
-	visualization.GenerateHeatMap(GrenadePoints, mapRadarImg, demoName+".jpeg", "GrenadeThrow")
 	return structures.MapStats{
-		TournamentName: tournamentName,
-		DemoHash:       fileMD5(demoPath),
-		DemoPath:       demoPath,
-		MapName:        header.MapName,
-		Players:        stats,
-		FirePoints:     firePoints,
-		DeathPoints:    deathPoints,
-		GrenadePoints:  GrenadePoints,
-		OverallStats:   overallstats,
+		TournamentName:           tournamentName,
+		MatchName:                matchName,
+		DemoName:                 demoName,
+		DemoHash:                 fileMD5(demoPath),
+		DemoPath:                 demoPath,
+		MapMetadata:              mapMetadata,
+		MapRadarImg:              mapRadarImg,
+		MapName:                  header.MapName,
+		Players:                  stats,
+		FirePoints:               firePoints,
+		DeathPoints:              deathPoints,
+		GrenadePoints:            GrenadePoints,
+		NadesProjectiles:         nadeTrajectories,
+		NadesInferno:             infernos,
+		PlayersFootStep:          playersFootStep,
+		PlayersWeaponShot:        playersWeaponShot,
+		PlayersWeaponReload:      playersWeaponReload,
+		PlayersJump:              playersJump,
+		PlayersBombDrop:          playersBombDrop,
+		PlayersSmoke:             playersSmoke,
+		PlayersHEGrenade:         playersHEGrenade,
+		PlayersMolotov:           playersMolotov,
+		PlayersIncendiaryGrenade: playersIncendiaryGrenade,
+		PlayersFlashbang:         playersFlashbang,
+		PlayersDecoyGrenade:      playersDecoyGrenade,
 	}, nil
 }
 
-func statsFor(p *common.Player, fs structures.PlayersFootSteps, dk structures.PlayersDuckKills, fk structures.PlayersFlashedKills, airk structures.PlayersAirborneKills, wbk structures.PlayersWallbangKills, sk structures.PlayerSmokeKills, ns structures.PlayerNoScopeKills, ws structures.PlayerWeaponShots, wr structures.PlayerWeaponReloads, pj structures.PlayerJumps, bd structures.PlayerBombDrops, smoke structures.PlayerSmokes, he structures.PlayerHEGrenades, molotov structures.PlayerMolotovs, ctMoly structures.PlayerIncendiaryGrenades, flashbang structures.PlayerFlashbangs, decoy structures.PlayerDecoyGrenades) structures.PlayerStats {
+func statsFor(p *common.Player, fs structures.FootSteps, dk structures.DuckKills, fk structures.FlashedKills, airk structures.AirborneKills, wbk structures.WallbangKills, sk structures.SmokeKills, ns structures.NoScopeKills, ws structures.WeaponShots, wr structures.WeaponReloads, pj structures.Jumps, bd structures.BombDrops, smoke structures.Smokes, he structures.HEGrenades, molotov structures.Molotovs, ctMoly structures.IncendiaryGrenades, flashbang structures.Flashbangs, decoy structures.DecoyGrenades) structures.PlayerStats {
 	return structures.PlayerStats{
 		SteamID64:     p.SteamID64,
 		Name:          p.Name,

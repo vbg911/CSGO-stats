@@ -10,23 +10,23 @@ import (
 
 type NadeTrajectories map[int]map[int64]*common.GrenadeProjectile
 type Infernos map[int]map[int64]*common.Inferno
-type PlayersFootSteps map[uint64]int
-type PlayersDuckKills map[uint64]int
-type PlayersFlashedKills map[uint64]int
-type PlayersAirborneKills map[uint64]int
-type PlayersWallbangKills map[uint64]int
-type PlayerSmokeKills map[uint64]int
-type PlayerNoScopeKills map[uint64]int
-type PlayerWeaponShots map[uint64]int
-type PlayerWeaponReloads map[uint64]int
-type PlayerJumps map[uint64]int
-type PlayerSmokes map[uint64]int
-type PlayerHEGrenades map[uint64]int
-type PlayerFlashbangs map[uint64]int
-type PlayerBombDrops map[uint64]int
-type PlayerIncendiaryGrenades map[uint64]int
-type PlayerMolotovs map[uint64]int
-type PlayerDecoyGrenades map[uint64]int
+type FootSteps map[uint64]int
+type DuckKills map[uint64]int
+type FlashedKills map[uint64]int
+type AirborneKills map[uint64]int
+type WallbangKills map[uint64]int
+type SmokeKills map[uint64]int
+type NoScopeKills map[uint64]int
+type WeaponShots map[uint64]int
+type WeaponReloads map[uint64]int
+type Jumps map[uint64]int
+type Smokes map[uint64]int
+type HEGrenades map[uint64]int
+type Flashbangs map[uint64]int
+type BombDrops map[uint64]int
+type IncendiaryGrenades map[uint64]int
+type Molotovs map[uint64]int
+type DecoyGrenades map[uint64]int
 
 type MatchStats struct {
 	TournamentName string     `json:"tournamentName"`
@@ -35,20 +35,31 @@ type MatchStats struct {
 }
 
 type MapStats struct {
-	TournamentName   string `json:"tournamentName"`
-	DemoHash         string `json:"demoHash"`
-	DemoPath         string `json:"demoPath"`
-	MapMetadata      ex.Map
-	MapRadarImg      image.Image
-	MapName          string        `json:"mapName"`
-	Players          []PlayerStats `json:"players"`
-	FirePoints       []r2.Point    `json:"firePoints"`
-	DeathPoints      []r2.Point    `json:"deathPoints"`
-	GrenadePoints    []r2.Point    `json:"grenadePoints"`
-	NadesProjectiles NadeTrajectories
-	Infernos
-
-	OverallStats map[string]int `json:"overallStats"`
+	TournamentName           string             `json:"tournamentName"`
+	MatchName                string             `json:"matchName"`
+	DemoName                 string             `json:"demoName"`
+	DemoHash                 string             `json:"demoHash"`
+	DemoPath                 string             `json:"demoPath"`
+	MapMetadata              ex.Map             `json:"mapMetadata"`
+	MapRadarImg              image.Image        `json:"mapRadarImg"`
+	MapName                  string             `json:"mapName"`
+	Players                  []PlayerStats      `json:"players"`
+	FirePoints               []r2.Point         `json:"firePoints"`
+	DeathPoints              []r2.Point         `json:"deathPoints"`
+	GrenadePoints            []r2.Point         `json:"grenadePoints"`
+	NadesProjectiles         NadeTrajectories   `json:"nadesProjectiles"`
+	NadesInferno             Infernos           `json:"nadesInferno"`
+	PlayersFootStep          FootSteps          `json:"playersFootStep"`
+	PlayersWeaponShot        WeaponShots        `json:"playersWeaponShot"`
+	PlayersWeaponReload      WeaponReloads      `json:"playersWeaponReload"`
+	PlayersJump              Jumps              `json:"playersJump"`
+	PlayersBombDrop          BombDrops          `json:"playersBombDrop"`
+	PlayersSmoke             Smokes             `json:"playersSmoke"`
+	PlayersHEGrenade         HEGrenades         `json:"playersHEGrenade"`
+	PlayersMolotov           Molotovs           `json:"playersMolotov"`
+	PlayersIncendiaryGrenade IncendiaryGrenades `json:"playersIncendiaryGrenade"`
+	PlayersFlashbang         Flashbangs         `json:"playersFlashbang"`
+	PlayersDecoyGrenade      DecoyGrenades      `json:"playersDecoyGrenade"`
 }
 
 type PlayerStats struct {
