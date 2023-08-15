@@ -2,6 +2,7 @@ package main
 
 import (
 	"CSGO-stats/internal/demoparser"
+	"CSGO-stats/internal/structures"
 	"CSGO-stats/internal/visualization"
 	"fmt"
 	"os"
@@ -17,6 +18,9 @@ func main() {
 	entries, err := os.ReadDir(demoFolder)
 	checkError(err)
 
+	var matchMaps []structures.MapStats
+	var tournamentMatches []structures.MatchStats
+	var tournaments []structures.Tournament
 	for _, e := range entries {
 		if e.IsDir() {
 			tournament = e.Name()
@@ -31,6 +35,8 @@ func main() {
 						fmt.Println("Tournament: " + tournament + " match: " + match + " file: " + e.Name())
 						pathToDemo := demoFolder + "/" + tournament + "/" + match + "/" + e.Name()
 						mapStats, err := demoparser.ParseDemo(tournament, match, e.Name(), pathToDemo)
+
+						matchMaps = append(matchMaps, mapStats)
 
 						fmt.Println("Все игроки вместе сделали: ", mapStats.PlayersFootStep[0], " шагов")
 						fmt.Println("Все игроки вместе сделали: ", mapStats.PlayersWeaponShot[0], " выстрелов")
@@ -49,14 +55,26 @@ func main() {
 						visualization.GenerateHeatMap(mapStats.GrenadePoints, mapStats.MapRadarImg, mapStats.DemoName+".jpeg", "GrenadeThrow")
 
 						visualization.GenerateTrajectories(mapStats.MapMetadata, mapStats.MapRadarImg, mapStats.NadesProjectiles, mapStats.NadesInferno, "GrenadeTrajectories\\"+mapStats.TournamentName, mapStats.DemoName+".jpeg")
-
 						checkError(err)
 					}
 				}
+				tournamentMatches = append(tournamentMatches, structures.MatchStats{
+					TournamentName: tournament,
+					MatchName:      match,
+					Maps:           matchMaps,
+				})
+				matchMaps = nil
 			}
+			tournaments = append(tournaments, structures.Tournament{
+				TournamentName: tournament,
+				Matches:        tournamentMatches,
+			})
+			tournamentMatches = nil
 		}
 	}
 
+	fmt.Println(len(tournaments))
+	fmt.Println(tournaments[0].Matches[0].MatchName)
 }
 
 func checkError(err error) {

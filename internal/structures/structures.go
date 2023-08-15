@@ -28,6 +28,11 @@ type IncendiaryGrenades map[uint64]int
 type Molotovs map[uint64]int
 type DecoyGrenades map[uint64]int
 
+type Tournament struct {
+	TournamentName string       `json:"tournamentName"`
+	Matches        []MatchStats `json:"matches"`
+}
+
 type MatchStats struct {
 	TournamentName string     `json:"tournamentName"`
 	MatchName      string     `json:"matchName"`
