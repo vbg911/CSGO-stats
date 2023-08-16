@@ -1,6 +1,7 @@
 package main
 
 import (
+	"CSGO-stats/internal/analyze"
 	"CSGO-stats/internal/demoparser"
 	"CSGO-stats/internal/structures"
 	"CSGO-stats/internal/visualization"
@@ -38,17 +39,17 @@ func main() {
 
 						matchMaps = append(matchMaps, mapStats)
 
-						fmt.Println("Все игроки вместе сделали: ", mapStats.PlayersFootStep[0], " шагов")
-						fmt.Println("Все игроки вместе сделали: ", mapStats.PlayersWeaponShot[0], " выстрелов")
-						fmt.Println("Все игроки вместе сделали: ", mapStats.PlayersWeaponReload[0], " перезарядок")
-						fmt.Println("Все игроки вместе сделали: ", mapStats.PlayersJump[0], " прыжков")
-						fmt.Println("Все игроки в сумме дропнули бомбу: ", mapStats.PlayersBombDrop[0], " раз(а)")
-						fmt.Println("Все игроки в сумме кинули Smoke: ", mapStats.PlayersSmoke[0], " раз(а)")
-						fmt.Println("Все игроки в сумме кинули HE Grenade: ", mapStats.PlayersHEGrenade[0], " раз(а)")
-						fmt.Println("Все игроки в сумме кинули Molotov: ", mapStats.PlayersMolotov[0], " раз(а)")
-						fmt.Println("Все игроки в сумме кинули Incendiary Grenade: ", mapStats.PlayersIncendiaryGrenade[0], " раз(а)")
-						fmt.Println("Все игроки в сумме кинули Flashbang: ", mapStats.PlayersFlashbang[0], " раз(а)")
-						fmt.Println("Все игроки в сумме кинули Decoy: ", mapStats.PlayersDecoyGrenade[0], " раз(а)")
+						//fmt.Println("Все игроки вместе сделали: ", mapStats.PlayersFootStep[0], " шагов")
+						//fmt.Println("Все игроки вместе сделали: ", mapStats.PlayersWeaponShot[0], " выстрелов")
+						//fmt.Println("Все игроки вместе сделали: ", mapStats.PlayersWeaponReload[0], " перезарядок")
+						//fmt.Println("Все игроки вместе сделали: ", mapStats.PlayersJump[0], " прыжков")
+						//fmt.Println("Все игроки в сумме дропнули бомбу: ", mapStats.PlayersBombDrop[0], " раз(а)")
+						//fmt.Println("Все игроки в сумме кинули Smoke: ", mapStats.PlayersSmoke[0], " раз(а)")
+						//fmt.Println("Все игроки в сумме кинули HE Grenade: ", mapStats.PlayersHEGrenade[0], " раз(а)")
+						//fmt.Println("Все игроки в сумме кинули Molotov: ", mapStats.PlayersMolotov[0], " раз(а)")
+						//fmt.Println("Все игроки в сумме кинули Incendiary Grenade: ", mapStats.PlayersIncendiaryGrenade[0], " раз(а)")
+						//fmt.Println("Все игроки в сумме кинули Flashbang: ", mapStats.PlayersFlashbang[0], " раз(а)")
+						//fmt.Println("Все игроки в сумме кинули Decoy: ", mapStats.PlayersDecoyGrenade[0], " раз(а)")
 
 						visualization.GenerateHeatMap(mapStats.FirePoints, mapStats.MapRadarImg, mapStats.DemoName+".jpeg", "WeaponFire")
 						visualization.GenerateHeatMap(mapStats.DeathPoints, mapStats.MapRadarImg, mapStats.DemoName+".jpeg", "PlayerDeath")
@@ -73,8 +74,17 @@ func main() {
 		}
 	}
 
-	fmt.Println(len(tournaments))
-	fmt.Println(tournaments[0].Matches[0].MatchName)
+	for _, i := range tournaments {
+		analyze.AnalyzeTournament(i)
+		fmt.Println("турнир: " + i.TournamentName)
+		for _, j := range i.Matches {
+			fmt.Println("	матч: " + j.MatchName)
+			for _, k := range j.Maps {
+				fmt.Println("		карта: " + k.MapName)
+			}
+		}
+	}
+
 }
 
 func checkError(err error) {
