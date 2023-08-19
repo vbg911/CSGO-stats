@@ -237,6 +237,7 @@ func ParseDemo(tournamentName string, matchName string, filename string, demoPat
 }
 
 func statsFor(p *common.Player, fs structures.FootSteps, dk structures.DuckKills, fk structures.FlashedKills, airk structures.AirborneKills, wbk structures.WallbangKills, sk structures.SmokeKills, ns structures.NoScopeKills, ws structures.WeaponShots, wr structures.WeaponReloads, pj structures.Jumps, bd structures.BombDrops, smoke structures.Smokes, he structures.HEGrenades, molotov structures.Molotovs, ctMoly structures.IncendiaryGrenades, flashbang structures.Flashbangs, decoy structures.DecoyGrenades) structures.PlayerStats {
+	fmt.Println(p.Name, strings.Trim(p.Name, "[\x00-\x1f\x7f-\xff]"))
 	return structures.PlayerStats{
 		SteamID64:     p.SteamID64,
 		Name:          p.Name,

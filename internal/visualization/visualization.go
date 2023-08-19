@@ -3,6 +3,9 @@ package visualization
 import (
 	"CSGO-stats/internal/structures"
 	"fmt"
+	"github.com/go-echarts/go-echarts/v2/charts"
+	"github.com/go-echarts/go-echarts/v2/components"
+	"github.com/go-echarts/go-echarts/v2/opts"
 	"github.com/golang/geo/r2"
 	"github.com/llgcode/draw2d/draw2dimg"
 	ex "github.com/markus-wa/demoinfocs-golang/v3/examples"
@@ -13,6 +16,7 @@ import (
 	"image/color"
 	"image/draw"
 	"image/jpeg"
+	"io"
 	"os"
 	"strconv"
 )
@@ -21,6 +25,207 @@ const (
 	dotSize = 20
 	opacity = 128
 )
+
+func ESKills(data []structures.SummaryStatistics, name string, amount int, url string) *charts.EffectScatter {
+	es := charts.NewEffectScatter()
+	es.SetGlobalOptions(
+		charts.WithTitleOpts(opts.Title{
+			Title:    "Top 10 FRAGGERS",
+			Subtitle: "Based on the analysis of " + strconv.Itoa(amount) + " demos from \"" + name + "\"",
+			SubtitleStyle: &opts.TextStyle{
+				FontSize: 15,
+			},
+			SubLink: url,
+			Right:   "40%",
+		}),
+		charts.WithInitializationOpts(opts.Initialization{
+			PageTitle: name + " analysis",
+			Width:     "1200px",
+			Height:    "600px",
+		}),
+		charts.WithToolboxOpts(opts.Toolbox{
+			Show:  true,
+			Right: "10%",
+			Feature: &opts.ToolBoxFeature{
+				SaveAsImage: &opts.ToolBoxFeatureSaveAsImage{
+					Show:  true,
+					Type:  "png",
+					Name:  "top 10 fraggers " + name,
+					Title: "Download Chart",
+				},
+				DataView: &opts.ToolBoxFeatureDataView{
+					Show:  true,
+					Title: "Show Data",
+					Lang:  []string{"data view", "close", "refresh"},
+				},
+			}}),
+		charts.WithTooltipOpts(opts.Tooltip{Show: true}),
+		charts.WithLegendOpts(opts.Legend{Show: true, Right: "87%"}),
+		charts.WithXAxisOpts(opts.XAxis{
+			Name:        "",
+			Type:        "",
+			Show:        true,
+			Data:        nil,
+			SplitNumber: 0,
+			Scale:       false,
+			Min:         nil,
+			Max:         nil,
+			MinInterval: 0,
+			MaxInterval: 0,
+			GridIndex:   0,
+			SplitArea:   nil,
+			SplitLine:   nil,
+			AxisLabel: &opts.AxisLabel{
+				Show:            true,
+				Interval:        "0",
+				Inside:          false,
+				Rotate:          0,
+				Margin:          0,
+				Formatter:       "",
+				ShowMinLabel:    true,
+				ShowMaxLabel:    true,
+				Color:           "",
+				FontStyle:       "",
+				FontWeight:      "",
+				FontFamily:      "",
+				FontSize:        "",
+				Align:           "",
+				VerticalAlign:   "",
+				LineHeight:      "",
+				BackgroundColor: "",
+			},
+			AxisTick:    nil,
+			AxisPointer: nil,
+		}),
+	)
+
+	var players []string
+	var kills []opts.EffectScatterData
+	for _, j := range data {
+		players = append(players, j.Name)
+		kills = append(kills, opts.EffectScatterData{
+			Name:  j.Name,
+			Value: j.Kills,
+		})
+	}
+
+	es.SetXAxis(players[:10]).AddSeries("Kills", kills[:10], charts.WithRippleEffectOpts(opts.RippleEffect{
+		Period:    4,
+		Scale:     4,
+		BrushType: "fill",
+	}))
+
+	return es
+}
+
+func ESDeath(data []structures.SummaryStatistics, name string, amount int, url string) *charts.EffectScatter {
+	es := charts.NewEffectScatter()
+	es.SetGlobalOptions(
+		charts.WithTitleOpts(opts.Title{
+			Title:    "Top 10 players with the most deaths",
+			Subtitle: "Based on the analysis of " + strconv.Itoa(amount) + " demos from \"" + name + "\"",
+			SubtitleStyle: &opts.TextStyle{
+				FontSize: 15,
+			},
+			SubLink: url,
+			Right:   "40%",
+		}),
+		charts.WithInitializationOpts(opts.Initialization{
+			PageTitle: name + " analysis",
+			Width:     "1200px",
+			Height:    "600px",
+		}),
+		charts.WithToolboxOpts(opts.Toolbox{
+			Show:  true,
+			Right: "10%",
+			Feature: &opts.ToolBoxFeature{
+				SaveAsImage: &opts.ToolBoxFeatureSaveAsImage{
+					Show:  true,
+					Type:  "png",
+					Name:  "top 10 deaths " + name,
+					Title: "Download Chart",
+				},
+				DataView: &opts.ToolBoxFeatureDataView{
+					Show:  true,
+					Title: "Show Data",
+					Lang:  []string{"data view", "close", "refresh"},
+				},
+			}}),
+		charts.WithTooltipOpts(opts.Tooltip{Show: true}),
+		charts.WithLegendOpts(opts.Legend{Show: true, Right: "87%"}),
+		charts.WithXAxisOpts(opts.XAxis{
+			Name:        "",
+			Type:        "",
+			Show:        true,
+			Data:        nil,
+			SplitNumber: 0,
+			Scale:       false,
+			Min:         nil,
+			Max:         nil,
+			MinInterval: 0,
+			MaxInterval: 0,
+			GridIndex:   0,
+			SplitArea:   nil,
+			SplitLine:   nil,
+			AxisLabel: &opts.AxisLabel{
+				Show:            true,
+				Interval:        "0",
+				Inside:          false,
+				Rotate:          0,
+				Margin:          0,
+				Formatter:       "",
+				ShowMinLabel:    true,
+				ShowMaxLabel:    true,
+				Color:           "",
+				FontStyle:       "",
+				FontWeight:      "",
+				FontFamily:      "",
+				FontSize:        "",
+				Align:           "",
+				VerticalAlign:   "",
+				LineHeight:      "",
+				BackgroundColor: "",
+			},
+			AxisTick:    nil,
+			AxisPointer: nil,
+		}),
+	)
+
+	var players []string
+	var deaths []opts.EffectScatterData
+	for _, j := range data {
+		players = append(players, j.Name)
+		deaths = append(deaths, opts.EffectScatterData{
+			Name:  j.Name,
+			Value: j.Deaths,
+		})
+	}
+
+	es.SetXAxis(players[:10]).AddSeries("Deaths", deaths[:10], charts.WithRippleEffectOpts(opts.RippleEffect{
+		Period:    4,
+		Scale:     4,
+		BrushType: "fill",
+	}))
+
+	return es
+}
+
+func GenerateCharts(data structures.ChartData, tournamentName string, demoAmount int, url string) {
+	page := components.NewPage()
+	page.PageTitle = tournamentName
+	page.AddCharts(
+		ESKills(data["SortedByKills"], tournamentName, demoAmount, url),
+		ESDeath(data["SortedByDeath"], tournamentName, demoAmount, url),
+	)
+	f, err := os.Create("html/charts.html")
+	if err != nil {
+		panic(err)
+	}
+	err = page.Render(io.MultiWriter(f))
+	if err != nil {
+		panic(err)
+	}
+}
 
 func buildInfernoPath(mapMetadata ex.Map, gc *draw2dimg.GraphicContext, vertices []r2.Point) {
 	xOrigin, yOrigin := mapMetadata.TranslateScale(vertices[0].X, vertices[0].Y)

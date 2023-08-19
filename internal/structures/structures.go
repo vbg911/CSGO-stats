@@ -122,3 +122,10 @@ func (s PlayerStats) FormatString() string {
 		"\nFlashbang       " + strconv.Itoa(s.Flasbang) +
 		"\nDecoy Grenade   " + strconv.Itoa(s.Decoy)
 }
+
+type SummaryStatistics struct {
+	MapPlayed int `json:"mapPlayed"`
+	PlayerStats
+}
+
+type ChartData map[string][]SummaryStatistics

@@ -2,32 +2,22 @@ package analyze
 
 import (
 	"CSGO-stats/internal/structures"
-	"fmt"
+	"CSGO-stats/internal/visualization"
 	"sort"
 )
 
 func AnalyzeTournament(tournament structures.Tournament) {
-	CalculateStatistics(tournament)
+	data, amount := CalculateStatistics(tournament)
+	visualization.GenerateCharts(data, tournament.TournamentName, amount, "https://www.hltv.org/events/7319/la-liga-pro-2023")
 }
-
-type summaryStatistics struct {
-	MapPlayed int `json:"mapPlayed"`
-	structures.PlayerStats
-}
-
-type ByKills []summaryStatistics
-
-func (a ByKills) Len() int           { return len(a) }
-func (a ByKills) Less(i, j int) bool { return a[i].Kills > a[j].Kills }
-func (a ByKills) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 // CalculateStatistics подсчитывает статистику всех игроков за все карты турнира
-func CalculateStatistics(tournament structures.Tournament) {
-
-	sumStats := make(map[uint64]summaryStatistics)
-
+func CalculateStatistics(tournament structures.Tournament) (structures.ChartData, int) {
+	sumStats := make(map[uint64]structures.SummaryStatistics)
+	matchAmount := 0
 	for _, matches := range tournament.Matches {
 		for _, csMap := range matches.Maps {
+			matchAmount++
 			for _, player := range csMap.Players {
 				if val, ok := sumStats[player.SteamID64]; ok {
 					val.MapPlayed += 1
@@ -54,7 +44,7 @@ func CalculateStatistics(tournament structures.Tournament) {
 					val.Decoy += player.Decoy
 					sumStats[player.SteamID64] = val
 				} else {
-					stats := summaryStatistics{
+					stats := structures.SummaryStatistics{
 						MapPlayed: 1,
 						PlayerStats: structures.PlayerStats{
 							SteamID64:     player.SteamID64,
@@ -90,14 +80,112 @@ func CalculateStatistics(tournament structures.Tournament) {
 		}
 	}
 
-	v := make([]summaryStatistics, 0, len(sumStats))
+	v := make([]structures.SummaryStatistics, 0, len(sumStats))
 	for _, value := range sumStats {
 		v = append(v, value)
 	}
 
+	chartData := make(structures.ChartData)
+
 	sort.Sort(ByKills(v))
-	for _, i := range v {
-		fmt.Println(i.Name, " maps: ", i.MapPlayed, " kills: ", i.Kills)
-	}
-	//fmt.Println(sumStats)
+	SortedByKills := make([]structures.SummaryStatistics, len(sumStats))
+	copy(SortedByKills, v)
+	chartData["SortedByKills"] = SortedByKills
+
+	sort.Sort(ByDeath(v))
+	SortedByDeath := make([]structures.SummaryStatistics, len(sumStats))
+	copy(SortedByDeath, v)
+	chartData["SortedByDeath"] = SortedByDeath
+
+	sort.Sort(ByAssists(v))
+	SortedByAssists := make([]structures.SummaryStatistics, len(sumStats))
+	copy(SortedByAssists, v)
+	chartData["SortedByAssists"] = SortedByAssists
+
+	sort.Sort(ByFootSteps(v))
+	SortedByFootSteps := make([]structures.SummaryStatistics, len(sumStats))
+	copy(SortedByFootSteps, v)
+	chartData["SortedByFootSteps"] = SortedByFootSteps
+
+	sort.Sort(ByDuckKills(v))
+	SortedByDuckKills := make([]structures.SummaryStatistics, len(sumStats))
+	copy(SortedByDuckKills, v)
+	chartData["SortedByDuckKills"] = SortedByDuckKills
+
+	sort.Sort(ByFlashedKills(v))
+	SortedByFlashedKills := make([]structures.SummaryStatistics, len(sumStats))
+	copy(SortedByFlashedKills, v)
+	chartData["SortedByFlashedKills"] = SortedByFlashedKills
+
+	sort.Sort(ByAirborneKills(v))
+	SortedByAirborneKills := make([]structures.SummaryStatistics, len(sumStats))
+	copy(SortedByAirborneKills, v)
+	chartData["SortedByAirborneKills"] = SortedByAirborneKills
+
+	sort.Sort(ByWallbangKills(v))
+	SortedByWallbangKills := make([]structures.SummaryStatistics, len(sumStats))
+	copy(SortedByWallbangKills, v)
+	chartData["SortedByWallbangKills"] = SortedByWallbangKills
+
+	sort.Sort(BySmokeKills(v))
+	SortedBySmokeKills := make([]structures.SummaryStatistics, len(sumStats))
+	copy(SortedBySmokeKills, v)
+	chartData["SortedBySmokeKills"] = SortedBySmokeKills
+
+	sort.Sort(ByNoScopeKills(v))
+	SortedByNoScopeKills := make([]structures.SummaryStatistics, len(sumStats))
+	copy(SortedByNoScopeKills, v)
+	chartData["SortedByNoScopeKills"] = SortedByNoScopeKills
+
+	sort.Sort(ByWeaponShots(v))
+	SortedByWeaponShots := make([]structures.SummaryStatistics, len(sumStats))
+	copy(SortedByWeaponShots, v)
+	chartData["SortedByWeaponShots"] = SortedByWeaponShots
+
+	sort.Sort(ByWeaponReloads(v))
+	SortedByWeaponReloads := make([]structures.SummaryStatistics, len(sumStats))
+	copy(SortedByWeaponReloads, v)
+	chartData["SortedByWeaponReloads"] = SortedByWeaponReloads
+
+	sort.Sort(ByPlayerJumps(v))
+	SortedByPlayerJumps := make([]structures.SummaryStatistics, len(sumStats))
+	copy(SortedByPlayerJumps, v)
+	chartData["SortedByPlayerJumps"] = SortedByPlayerJumps
+
+	sort.Sort(ByBombDrops(v))
+	SortedByBombDrops := make([]structures.SummaryStatistics, len(sumStats))
+	copy(SortedByBombDrops, v)
+	chartData["SortedByBombDrops"] = SortedByBombDrops
+
+	sort.Sort(BySmokes(v))
+	SortedBySmokes := make([]structures.SummaryStatistics, len(sumStats))
+	copy(SortedBySmokes, v)
+	chartData["SortedBySmokes"] = SortedBySmokes
+
+	sort.Sort(ByHEnades(v))
+	SortedByHEnades := make([]structures.SummaryStatistics, len(sumStats))
+	copy(SortedByHEnades, v)
+	chartData["SortedByHEnades"] = SortedByHEnades
+
+	sort.Sort(ByMolotov(v))
+	SortedByMolotov := make([]structures.SummaryStatistics, len(sumStats))
+	copy(SortedByMolotov, v)
+	chartData["SortedByMolotov"] = SortedByMolotov
+
+	sort.Sort(ByCTmoly(v))
+	SortedByCTmoly := make([]structures.SummaryStatistics, len(sumStats))
+	copy(SortedByCTmoly, v)
+	chartData["SortedByCTmoly"] = SortedByCTmoly
+
+	sort.Sort(ByFlasbang(v))
+	SortedByFlasbang := make([]structures.SummaryStatistics, len(sumStats))
+	copy(SortedByFlasbang, v)
+	chartData["SortedByFlasbang"] = SortedByFlasbang
+
+	sort.Sort(ByDecoy(v))
+	SortedByDecoy := make([]structures.SummaryStatistics, len(sumStats))
+	copy(SortedByDecoy, v)
+	chartData["SortedByDecoy"] = SortedByDecoy
+
+	return chartData, matchAmount
 }
