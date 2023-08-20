@@ -19,6 +19,7 @@ import (
 	"io"
 	"os"
 	"strconv"
+	"strings"
 )
 
 const (
@@ -122,7 +123,7 @@ func ESDeath(data []structures.SummaryStatistics, name string, amount int, url s
 	es := charts.NewEffectScatter()
 	es.SetGlobalOptions(
 		charts.WithTitleOpts(opts.Title{
-			Title:    "Top 10 players with the most deaths",
+			Title:    "Top 10 players with a most deaths",
 			Subtitle: "Based on the analysis of " + strconv.Itoa(amount) + " demos from \"" + name + "\"",
 			SubtitleStyle: &opts.TextStyle{
 				FontSize: 15,
@@ -210,12 +211,371 @@ func ESDeath(data []structures.SummaryStatistics, name string, amount int, url s
 	return es
 }
 
+func ESAssists(data []structures.SummaryStatistics, name string, amount int, url string) *charts.EffectScatter {
+	es := charts.NewEffectScatter()
+	es.SetGlobalOptions(
+		charts.WithTitleOpts(opts.Title{
+			Title:    "Top 10 players with a most assists",
+			Subtitle: "Based on the analysis of " + strconv.Itoa(amount) + " demos from \"" + name + "\"",
+			SubtitleStyle: &opts.TextStyle{
+				FontSize: 15,
+			},
+			SubLink: url,
+			Right:   "40%",
+		}),
+		charts.WithInitializationOpts(opts.Initialization{
+			PageTitle: name + " analysis",
+			Width:     "1200px",
+			Height:    "600px",
+		}),
+		charts.WithToolboxOpts(opts.Toolbox{
+			Show:  true,
+			Right: "10%",
+			Feature: &opts.ToolBoxFeature{
+				SaveAsImage: &opts.ToolBoxFeatureSaveAsImage{
+					Show:  true,
+					Type:  "png",
+					Name:  "top 10 assists " + name,
+					Title: "Download Chart",
+				},
+				DataView: &opts.ToolBoxFeatureDataView{
+					Show:  true,
+					Title: "Show Data",
+					Lang:  []string{"data view", "close", "refresh"},
+				},
+			}}),
+		charts.WithTooltipOpts(opts.Tooltip{Show: true}),
+		charts.WithLegendOpts(opts.Legend{Show: true, Right: "87%"}),
+		charts.WithXAxisOpts(opts.XAxis{
+			Name:        "",
+			Type:        "",
+			Show:        true,
+			Data:        nil,
+			SplitNumber: 0,
+			Scale:       false,
+			Min:         nil,
+			Max:         nil,
+			MinInterval: 0,
+			MaxInterval: 0,
+			GridIndex:   0,
+			SplitArea:   nil,
+			SplitLine:   nil,
+			AxisLabel: &opts.AxisLabel{
+				Show:            true,
+				Interval:        "0",
+				Inside:          false,
+				Rotate:          0,
+				Margin:          0,
+				Formatter:       "",
+				ShowMinLabel:    true,
+				ShowMaxLabel:    true,
+				Color:           "",
+				FontStyle:       "",
+				FontWeight:      "",
+				FontFamily:      "",
+				FontSize:        "",
+				Align:           "",
+				VerticalAlign:   "",
+				LineHeight:      "",
+				BackgroundColor: "",
+			},
+			AxisTick:    nil,
+			AxisPointer: nil,
+		}),
+	)
+
+	var players []string
+	var assists []opts.EffectScatterData
+	for _, j := range data {
+		players = append(players, j.Name)
+		assists = append(assists, opts.EffectScatterData{
+			Name:  j.Name,
+			Value: j.Assists,
+		})
+	}
+
+	es.SetXAxis(players[:10]).AddSeries("Assists", assists[:10], charts.WithRippleEffectOpts(opts.RippleEffect{
+		Period:    4,
+		Scale:     4,
+		BrushType: "fill",
+	}))
+
+	return es
+}
+
+func ESChart(dataType string, data []structures.SummaryStatistics, name string, amount int, url string) *charts.EffectScatter {
+	es := charts.NewEffectScatter()
+	es.SetGlobalOptions(
+		charts.WithTitleOpts(opts.Title{
+			Title:    "Top 10 players with a most " + dataType,
+			Subtitle: "Based on the analysis of " + strconv.Itoa(amount) + " demos from \"" + name + "\"",
+			SubtitleStyle: &opts.TextStyle{
+				FontSize: 15,
+			},
+			SubLink: url,
+			Right:   "40%",
+		}),
+		charts.WithInitializationOpts(opts.Initialization{
+			PageTitle: name + " analysis",
+			Width:     "1200px",
+			Height:    "600px",
+		}),
+		charts.WithToolboxOpts(opts.Toolbox{
+			Show:  true,
+			Right: "10%",
+			Feature: &opts.ToolBoxFeature{
+				SaveAsImage: &opts.ToolBoxFeatureSaveAsImage{
+					Show:  true,
+					Type:  "png",
+					Name:  "top 10 " + dataType + " " + name,
+					Title: "Download Chart",
+				},
+				DataView: &opts.ToolBoxFeatureDataView{
+					Show:  true,
+					Title: "Show Data",
+					Lang:  []string{"data view", "close", "refresh"},
+				},
+			}}),
+		charts.WithTooltipOpts(opts.Tooltip{Show: true}),
+		charts.WithLegendOpts(opts.Legend{Show: true, Right: "87%"}),
+		charts.WithXAxisOpts(opts.XAxis{
+			Name:        "",
+			Type:        "",
+			Show:        true,
+			Data:        nil,
+			SplitNumber: 0,
+			Scale:       false,
+			Min:         nil,
+			Max:         nil,
+			MinInterval: 0,
+			MaxInterval: 0,
+			GridIndex:   0,
+			SplitArea:   nil,
+			SplitLine:   nil,
+			AxisLabel: &opts.AxisLabel{
+				Show:            true,
+				Interval:        "0",
+				Inside:          false,
+				Rotate:          0,
+				Margin:          0,
+				Formatter:       "",
+				ShowMinLabel:    true,
+				ShowMaxLabel:    true,
+				Color:           "",
+				FontStyle:       "",
+				FontWeight:      "",
+				FontFamily:      "",
+				FontSize:        "",
+				Align:           "",
+				VerticalAlign:   "",
+				LineHeight:      "",
+				BackgroundColor: "",
+			},
+			AxisTick:    nil,
+			AxisPointer: nil,
+		}),
+	)
+
+	var players []string
+	var points []opts.EffectScatterData
+	switch dataType {
+	case "kills":
+		for _, j := range data {
+			players = append(players, j.Name)
+			points = append(points, opts.EffectScatterData{
+				Name:  j.Name,
+				Value: j.Kills,
+			})
+		}
+	case "deaths":
+		for _, j := range data {
+			players = append(players, j.Name)
+			points = append(points, opts.EffectScatterData{
+				Name:  j.Name,
+				Value: j.Deaths,
+			})
+		}
+	case "assists":
+		for _, j := range data {
+			players = append(players, j.Name)
+			points = append(points, opts.EffectScatterData{
+				Name:  j.Name,
+				Value: j.Assists,
+			})
+		}
+	case "footsteps":
+		for _, j := range data {
+			players = append(players, j.Name)
+			points = append(points, opts.EffectScatterData{
+				Name:  j.Name,
+				Value: j.FootSteps,
+			})
+		}
+	case "duck kills":
+		for _, j := range data {
+			players = append(players, j.Name)
+			points = append(points, opts.EffectScatterData{
+				Name:  j.Name,
+				Value: j.DuckKills,
+			})
+		}
+	case "blind kills":
+		for _, j := range data {
+			players = append(players, j.Name)
+			points = append(points, opts.EffectScatterData{
+				Name:  j.Name,
+				Value: j.FlashedKills,
+			})
+		}
+	case "airborne kills":
+		for _, j := range data {
+			players = append(players, j.Name)
+			points = append(points, opts.EffectScatterData{
+				Name:  j.Name,
+				Value: j.AirborneKills,
+			})
+		}
+	case "wallbang kills":
+		for _, j := range data {
+			players = append(players, j.Name)
+			points = append(points, opts.EffectScatterData{
+				Name:  j.Name,
+				Value: j.WallbangKills,
+			})
+		}
+	case "smoke kills":
+		for _, j := range data {
+			players = append(players, j.Name)
+			points = append(points, opts.EffectScatterData{
+				Name:  j.Name,
+				Value: j.SmokeKills,
+			})
+		}
+	case "no scope kills":
+		for _, j := range data {
+			players = append(players, j.Name)
+			points = append(points, opts.EffectScatterData{
+				Name:  j.Name,
+				Value: j.NoScopeKills,
+			})
+		}
+	case "weapon shots":
+		for _, j := range data {
+			players = append(players, j.Name)
+			points = append(points, opts.EffectScatterData{
+				Name:  j.Name,
+				Value: j.WeaponShots,
+			})
+		}
+	case "weapon reloads":
+		for _, j := range data {
+			players = append(players, j.Name)
+			points = append(points, opts.EffectScatterData{
+				Name:  j.Name,
+				Value: j.WeaponReloads,
+			})
+		}
+	case "jumps":
+		for _, j := range data {
+			players = append(players, j.Name)
+			points = append(points, opts.EffectScatterData{
+				Name:  j.Name,
+				Value: j.PlayerJumps,
+			})
+		}
+	case "bomb drops":
+		for _, j := range data {
+			players = append(players, j.Name)
+			points = append(points, opts.EffectScatterData{
+				Name:  j.Name,
+				Value: j.BombDrops,
+			})
+		}
+	case "smokes used":
+		for _, j := range data {
+			players = append(players, j.Name)
+			points = append(points, opts.EffectScatterData{
+				Name:  j.Name,
+				Value: j.Smokes,
+			})
+		}
+	case "he used":
+		for _, j := range data {
+			players = append(players, j.Name)
+			points = append(points, opts.EffectScatterData{
+				Name:  j.Name,
+				Value: j.HEnades,
+			})
+		}
+	case "molotov used":
+		for _, j := range data {
+			players = append(players, j.Name)
+			points = append(points, opts.EffectScatterData{
+				Name:  j.Name,
+				Value: j.Molotov,
+			})
+		}
+	case "incendiary used":
+		for _, j := range data {
+			players = append(players, j.Name)
+			points = append(points, opts.EffectScatterData{
+				Name:  j.Name,
+				Value: j.CTmoly,
+			})
+		}
+	case "flashbang used":
+		for _, j := range data {
+			players = append(players, j.Name)
+			points = append(points, opts.EffectScatterData{
+				Name:  j.Name,
+				Value: j.Flasbang,
+			})
+		}
+	case "decoy used":
+		for _, j := range data {
+			players = append(players, j.Name)
+			points = append(points, opts.EffectScatterData{
+				Name:  j.Name,
+				Value: j.Decoy,
+			})
+		}
+	default:
+		panic("unknown data type")
+	}
+
+	es.SetXAxis(players[:10]).AddSeries(strings.ToUpper(dataType[:1])+dataType[1:], points[:10], charts.WithRippleEffectOpts(opts.RippleEffect{
+		Period:    4,
+		Scale:     4,
+		BrushType: "fill",
+	}))
+
+	return es
+}
+
 func GenerateCharts(data structures.ChartData, tournamentName string, demoAmount int, url string) {
 	page := components.NewPage()
 	page.PageTitle = tournamentName
 	page.AddCharts(
-		ESKills(data["SortedByKills"], tournamentName, demoAmount, url),
-		ESDeath(data["SortedByDeath"], tournamentName, demoAmount, url),
+		ESChart("kills", data["SortedByKills"], tournamentName, demoAmount, url),
+		ESChart("deaths", data["SortedByDeath"], tournamentName, demoAmount, url),
+		ESChart("assists", data["SortedByAssists"], tournamentName, demoAmount, url),
+		ESChart("footsteps", data["SortedByFootSteps"], tournamentName, demoAmount, url),
+		ESChart("duck kills", data["SortedByDuckKills"], tournamentName, demoAmount, url),
+		ESChart("blind kills", data["SortedByFlashedKills"], tournamentName, demoAmount, url),
+		ESChart("airborne kills", data["SortedByAirborneKills"], tournamentName, demoAmount, url),
+		ESChart("wallbang kills", data["SortedByWallbangKills"], tournamentName, demoAmount, url),
+		ESChart("smoke kills", data["SortedBySmokeKills"], tournamentName, demoAmount, url),
+		ESChart("no scope kills", data["SortedByNoScopeKills"], tournamentName, demoAmount, url),
+		ESChart("weapon shots", data["SortedByWeaponShots"], tournamentName, demoAmount, url),
+		ESChart("weapon reloads", data["SortedByWeaponReloads"], tournamentName, demoAmount, url),
+		ESChart("jumps", data["SortedByPlayerJumps"], tournamentName, demoAmount, url),
+		ESChart("bomb drops", data["SortedByBombDrops"], tournamentName, demoAmount, url),
+		ESChart("smokes used", data["SortedBySmokes"], tournamentName, demoAmount, url),
+		ESChart("he used", data["SortedByHEnades"], tournamentName, demoAmount, url),
+		ESChart("molotov used", data["SortedByMolotov"], tournamentName, demoAmount, url),
+		ESChart("incendiary used", data["SortedByCTmoly"], tournamentName, demoAmount, url),
+		ESChart("flashbang used", data["SortedByFlasbang"], tournamentName, demoAmount, url),
+		ESChart("decoy used", data["SortedByDecoy"], tournamentName, demoAmount, url),
 	)
 	f, err := os.Create("html/charts.html")
 	if err != nil {
